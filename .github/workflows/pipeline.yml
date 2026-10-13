@@ -1,0 +1,63 @@
+
+name: Stock Agent CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-lint:
+    name: Test, Lint and Build
+    runs-on: ubuntu-latest
+
+    env:
+      # ToDo: Create github secrets 
+      PYTHONPATH: src
+      APP_ENV: test
+      POSTGRES_DB: stockagent
+      POSTGRES_USER: stockagent
+      POSTGRES_PASSWORD: ci-only-not-a-real-secret
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest flake8 pylint
+
+      - name: Check Python syntax
+        run: python -m compileall -q src tests
+
+      - name: Check application imports
+        run: |
+          python -c "import api.main; print('API import OK')"
+          python -c "import screener.worker; print('Screener import OK')"
+
+      - name: Run flake8
+        run: flake8 src tests
+
+      - name: Run pylint
+        run: pylint src tests
+
+      - name: Run tests
+        run: pytest tests -v
+
+      - name: Validate Docker Compose
+        run: docker compose -f docker-compose.yaml config --quiet
+
+      - name: Build Docker images
+        run: docker compose -f docker-compose.yaml build api screener
