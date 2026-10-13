@@ -6,7 +6,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-stockagent}
       POSTGRES_USER: ${POSTGRES_USER:-stockagent}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -43,13 +43,13 @@ services:
       - backend
     init: true
 
-  worker:
+  screener:
     build:
       context: .
       dockerfile: Dockerfile
     profiles:
       - jobs
-    command: ["python", "-m", "stock_agent.worker"]
+    command: ["python", "-m", "stock_agent.screener"]
     environment:
       DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:-stockagent}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-stockagent}"
       APP_ENV: ${APP_ENV:-development}
