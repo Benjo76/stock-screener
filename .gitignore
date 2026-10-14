@@ -1,7 +1,10 @@
 .env
 .venv/
+venv/
 __pycache__/
 .pytest_cache/
 *.py[cod]
 data/*
 !data/.gitkeep
+dist/
+build/
