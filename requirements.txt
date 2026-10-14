@@ -6,3 +6,5 @@ alembic
 pydantic-settings
 pytest
 httpx
+flake8
+Flake8-pyproject
