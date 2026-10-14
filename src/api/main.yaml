@@ -1,0 +1,234 @@
+openapi: 3.1.0
+info:
+  title: Stock Screener API
+  description: Stock Screener REST API with authentication and request validation.
+  version: 0.1.0
+paths:
+  /healthcheck:
+    get:
+      tags:
+      - System
+      summary: Healthcheck
+      description: Returns the operational status of the service.
+      operationId: healthcheck_healthcheck_get
+      responses:
+        '200':
+          description: Service is healthy and running
+          content:
+            application/json:
+              schema: {}
+              example:
+                status: ok
+                service: stock-agent
+  /healthcheck/db:
+    get:
+      tags:
+      - System
+      summary: Database Healthcheck
+      description: Verifies the database connection by executing a test query.
+      operationId: database_healthcheck_healthcheck_db_get
+      responses:
+        '200':
+          description: Database is connected and reachable
+          content:
+            application/json:
+              schema: {}
+              example:
+                status: ok
+                database: connected
+  /stocks:
+    get:
+      tags:
+      - Stocks
+      summary: List stocks
+      description: Retrieve a list of all stored stocks, ordered by their internal
+        ID.
+      operationId: list_stocks_stocks_get
+      responses:
+        '200':
+          description: List of stocks
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/StockRead'
+                type: array
+                title: Response List Stocks Stocks Get
+        '401':
+          description: Unauthorized - Missing or invalid X-API-KEY header
+          content:
+            application/json:
+              example:
+                detail: Invalid or missing X-API-KEY header.
+    post:
+      tags:
+      - Stocks
+      summary: Create or retrieve a stock
+      description: Registers a new stock or returns an existing one if the ISIN is
+        already present. Requires at least an ISIN (WKN-only lookup is not yet supported).
+      operationId: create_stock_stocks_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StockCreate'
+        required: true
+      responses:
+        '201':
+          description: Stock created or retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockRead'
+        '401':
+          description: Unauthorized - Missing or invalid X-API-KEY header
+          content:
+            application/json:
+              example:
+                detail: Invalid or missing X-API-KEY header.
+        '415':
+          description: Unsupported Media Type - Content-Type must be application/json
+          content:
+            application/json:
+              example:
+                detail: 'Unsupported Media Type: ''Content-Type'' must be ''application/json''
+                  for POST requests.'
+        '422':
+          description: Validation error (e.g. missing required fields or invalid length)
+        '409':
+          description: Conflict - A stock with this ISIN or WKN already exists
+          content:
+            application/json:
+              example:
+                detail: A stock with this ISIN or WKN already exists.
+components:
+  schemas:
+    StockCreate:
+      properties:
+        isin:
+          anyOf:
+          - type: string
+            maxLength: 12
+            minLength: 12
+          - type: 'null'
+          title: Isin
+          description: International Securities Identification Number (12 characters)
+          examples:
+          - US0378331005
+        wkn:
+          anyOf:
+          - type: string
+            maxLength: 6
+            minLength: 6
+          - type: 'null'
+          title: Wkn
+          description: Wertpapierkennnummer (German securities identification code,
+            6 characters)
+          examples:
+          - '865985'
+        ticker:
+          anyOf:
+          - type: string
+            maxLength: 32
+          - type: 'null'
+          title: Ticker
+          description: Stock ticker symbol
+          examples:
+          - AAPL
+        name:
+          anyOf:
+          - type: string
+            maxLength: 255
+          - type: 'null'
+          title: Name
+          description: Company / stock name
+          examples:
+          - Apple Inc.
+        exchange:
+          anyOf:
+          - type: string
+            maxLength: 100
+          - type: 'null'
+          title: Exchange
+          description: Exchange name
+          examples:
+          - NASDAQ
+        currency:
+          anyOf:
+          - type: string
+            maxLength: 3
+            minLength: 3
+          - type: 'null'
+          title: Currency
+          description: ISO 4217 Currency Code (3 characters)
+          examples:
+          - USD
+      type: object
+      title: StockCreate
+    StockRead:
+      properties:
+        id:
+          type: integer
+          title: Id
+          description: Unique internal ID of the stock
+          examples:
+          - 1
+        isin:
+          type: string
+          title: Isin
+          description: International Securities Identification Number
+          examples:
+          - US0378331005
+        wkn:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Wkn
+          description: Wertpapierkennnummer
+          examples:
+          - '865985'
+        ticker:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ticker
+          description: Stock ticker symbol
+          examples:
+          - AAPL
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+          description: Company / stock name
+          examples:
+          - Apple Inc.
+        exchange:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Exchange
+          description: Exchange name
+          examples:
+          - NASDAQ
+        currency:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Currency
+          description: ISO 4217 Currency Code
+          examples:
+          - USD
+      type: object
+      required:
+      - id
+      - isin
+      title: StockRead
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-KEY
+      description: API Key required for accessing protected endpoints.
+security:
+- ApiKeyAuth: []

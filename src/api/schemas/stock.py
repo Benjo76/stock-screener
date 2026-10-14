@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 
 
-class SecurityCreate(BaseModel):
+class StockCreate(BaseModel):
     isin: str | None = Field(
         default=None,
         min_length=12,
@@ -25,7 +25,7 @@ class SecurityCreate(BaseModel):
     name: str | None = Field(
         default=None,
         max_length=255,
-        description="Company / security name",
+        description="Company / stock name",
         examples=["Apple Inc."],
     )
     exchange: str | None = Field(
@@ -43,10 +43,10 @@ class SecurityCreate(BaseModel):
     )
 
 
-class SecurityRead(BaseModel):
+class StockRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int = Field(description="Unique internal ID of the security", examples=[1])
+    id: int = Field(description="Unique internal ID of the stock", examples=[1])
     isin: str = Field(
         description="International Securities Identification Number",
         examples=["US0378331005"],
@@ -63,7 +63,7 @@ class SecurityRead(BaseModel):
     )
     name: str | None = Field(
         default=None,
-        description="Company / security name",
+        description="Company / stock name",
         examples=["Apple Inc."],
     )
     exchange: str | None = Field(

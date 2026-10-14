@@ -9,8 +9,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 from screener.db.base import Base
 
 
-class Security(Base):
-    __tablename__ = "securities"
+class Stock(Base):
+    __tablename__ = "stocks"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     isin: Mapped[str] = mapped_column(

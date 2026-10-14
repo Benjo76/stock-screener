@@ -1,3 +1,3 @@
-from api.schemas.security import SecurityCreate, SecurityRead
+from api.schemas.stock import StockCreate, StockRead
 
-__all__ = ["SecurityCreate", "SecurityRead"]
+__all__ = ["StockCreate", "StockRead"]

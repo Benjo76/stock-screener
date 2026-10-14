@@ -3,17 +3,17 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from api.schemas.security import SecurityCreate
-from screener.db.models import Security
+from api.schemas.stock import StockCreate
+from screener.db.models import Stock
 
 
-class SecurityService:
+class StockService:
     @staticmethod
-    def get_securities(db: Session) -> list[Security]:
-        return list(db.scalars(select(Security).order_by(Security.id)).all())
+    def get_stocks(db: Session) -> list[Stock]:
+        return list(db.scalars(select(Stock).order_by(Stock.id)).all())
 
     @staticmethod
-    def create_security(db: Session, payload: SecurityCreate) -> Security:
+    def create_stock(db: Session, payload: StockCreate) -> Stock:
         isin = payload.isin.strip().upper() if payload.isin else None
         wkn = payload.wkn.strip().upper() if payload.wkn else None
 
@@ -24,7 +24,7 @@ class SecurityService:
             )
 
         # At this stage, an ISIN is required by the database model.
-        # WKN-only inputs need a security lookup provider first.
+        # WKN-only inputs need a stock lookup provider first.
         if not isin:
             raise HTTPException(
                 status_code=422,
@@ -32,12 +32,12 @@ class SecurityService:
             )
 
         existing = db.scalar(
-            select(Security).where(Security.isin == isin)
+            select(Stock).where(Stock.isin == isin)
         )
         if existing:
             return existing
 
-        security = Security(
+        stock = Stock(
             isin=isin,
             wkn=wkn,
             ticker=payload.ticker,
@@ -46,7 +46,7 @@ class SecurityService:
             currency=payload.currency.upper() if payload.currency else None,
         )
 
-        db.add(security)
+        db.add(stock)
 
         try:
             db.commit()
@@ -54,8 +54,8 @@ class SecurityService:
             db.rollback()
             raise HTTPException(
                 status_code=409,
-                detail="A security with this ISIN or WKN already exists.",
+                detail="A stock with this ISIN or WKN already exists.",
             )
 
-        db.refresh(security)
-        return security
+        db.refresh(stock)
+        return stock
