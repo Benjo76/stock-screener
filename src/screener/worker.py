@@ -3,4 +3,7 @@
 
 class Worker:
     """ Placeholder """
-    pass
+
+    def __init__(self):
+        """ Placeholder """
+        pass
