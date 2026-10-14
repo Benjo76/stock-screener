@@ -61,7 +61,7 @@ class SecurityRead(BaseModel):
 @app.get("/healthcheck", tags=["System"])
 def healthcheck():
     return {
-        "status": "200",
+        "status": "ok",
         "service": "stock-agent"
         }
 
@@ -71,7 +71,7 @@ def database_healthcheck(db: DbSession):
 
     db.execute(text("SELECT 1"))
     return {
-        "status": "200",
+        "status": "ok",
         "database": "connected"
     }
 
