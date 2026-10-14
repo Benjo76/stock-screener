@@ -9,4 +9,3 @@ app = FastAPI(title="Stock Agent API")
 def health():
     """" Health check endpoint for the API """
     return {"status": "ok", "service": "stock-agent"}
-    
