@@ -277,12 +277,12 @@ class StockAnalysisEngine:
             val_points += 4.0
 
         if latest.ps_ratio is not None:
-            if latest.ps_ratio > 0 and latest.ps_ratio <= 4.0:
+            if 0 < latest.ps_ratio <= 4.0:
                 val_points += 7.0
             elif latest.ps_ratio > 4.0:
                 val_points += 3.0
         elif latest.pb_ratio is not None:
-            if latest.pb_ratio > 0 and latest.pb_ratio <= 3.0:
+            if 0 < latest.pb_ratio <= 3.0:
                 val_points += 5.0
 
         if latest.dividend_yield is not None and latest.dividend_yield > 0:

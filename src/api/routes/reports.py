@@ -138,7 +138,6 @@ def get_report(report_id: int, db: DbSession):
 )
 def delete_report(report_id: int, db: DbSession):
     ReportService.delete_report(db, report_id)
-    return None
 
 
 @router.post(

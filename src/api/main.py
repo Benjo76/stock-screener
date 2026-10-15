@@ -16,10 +16,10 @@ from api.routes.portfolios import router as portfolios_router
 from api.routes.reports import router as reports_router
 from api.routes.stocks import router as stocks_router
 from screener.db.base import Base
-import screener.db.models.job  # noqa
-import screener.db.models.portfolio  # noqa
-import screener.db.models.report  # noqa
-import screener.db.models.stock  # noqa
+import screener.db.models.job  # noqa # pylint: disable=unused-import
+import screener.db.models.portfolio  # noqa # pylint: disable=unused-import
+import screener.db.models.report  # noqa # pylint: disable=unused-import
+import screener.db.models.stock  # noqa # pylint: disable=unused-import
 from screener.db.session import engine
 
 

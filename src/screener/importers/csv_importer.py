@@ -226,7 +226,7 @@ class CsvPortfolioImporter:
             tabs = sample.count("\t")
             if semicolons > commas and semicolons > tabs:
                 return ";"
-            elif tabs > commas:
+            if tabs > commas:
                 return "\t"
             return ","
 

@@ -192,7 +192,6 @@ def update_stock(stock_id: int, payload: StockUpdate, db: DbSession):
 )
 def delete_stock(stock_id: int, db: DbSession):
     StockService.delete_stock(db, stock_id)
-    return None
 
 
 @router.get(

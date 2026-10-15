@@ -276,7 +276,6 @@ def add_holding(portfolio_id: int, payload: PortfolioHoldingCreate, db: DbSessio
 )
 def delete_holding(portfolio_id: int, holding_id: int, db: DbSession):
     PortfolioService.delete_holding(db, portfolio_id, holding_id)
-    return None
 
 
 @router.post(

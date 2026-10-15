@@ -24,3 +24,36 @@ exclude = [
     "build",
     "dist",
 ]
+
+[tool.pylint.main]
+source-roots = ["src"]
+init-hook = "import sys; sys.path.insert(0, 'src')"
+ignore-paths = ["^alembic/.*", "^.venv/.*"]
+
+[tool.pylint.format]
+max-line-length = 120
+
+[tool.pylint."messages control"]
+disable = [
+    "missing-module-docstring",
+    "missing-class-docstring",
+    "missing-function-docstring",
+    "too-few-public-methods",
+    "too-many-arguments",
+    "too-many-positional-arguments",
+    "too-many-locals",
+    "too-many-branches",
+    "too-many-statements",
+    "too-many-instance-attributes",
+    "duplicate-code",
+    "logging-fstring-interpolation",
+    "broad-exception-caught",
+    "broad-exception-raised",
+    "redefined-outer-name",
+    "unused-argument",
+    "import-outside-toplevel",
+    "fixme",
+]
+
+[tool.pylint.basic]
+good-names = ["i", "j", "k", "ex", "Run", "_", "id", "db", "app", "logger", "e", "f", "v", "kpi", "df", "SessionLocal"]

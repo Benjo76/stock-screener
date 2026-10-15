@@ -148,7 +148,7 @@ class StockService:
         db.add(stock)
         try:
             db.commit()
-        except IntegrityError:
+        except IntegrityError as exc:
             db.rollback()
             existing = cls.get_stock_by_identifier(db, isin=isin_clean, wkn=wkn_clean, ticker=ticker_clean)
             if existing:
@@ -156,7 +156,7 @@ class StockService:
             raise HTTPException(
                 status_code=409,
                 detail="A stock with this ISIN, WKN, or Ticker already exists.",
-            )
+            ) from exc
 
         db.refresh(stock)
         return stock
@@ -273,9 +273,9 @@ class StockService:
         try:
             db.commit()
             db.refresh(stock)
-        except IntegrityError:
+        except IntegrityError as exc:
             db.rollback()
-            raise HTTPException(status_code=409, detail="Identifier already in use by another stock.")
+            raise HTTPException(status_code=409, detail="Identifier already in use by another stock.") from exc
         return stock
 
     @classmethod
