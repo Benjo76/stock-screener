@@ -10,6 +10,9 @@ def get_database_url() -> str:
     if url:
         return url
 
+    if os.getenv("APP_ENV") == "test" or "pytest" in sys.modules or os.getenv("PYTEST_CURRENT_TEST"):
+        return "sqlite:///:memory:"
+
     user = os.getenv("POSTGRES_USER")
     password = os.getenv("POSTGRES_PASSWORD")
     db = os.getenv("POSTGRES_DB")
@@ -18,8 +21,5 @@ def get_database_url() -> str:
 
     if user and password and db:
         return f"postgresql+psycopg://{user}:{password}@{host}:{port}/{db}"
-
-    if os.getenv("APP_ENV") == "test" or "pytest" in sys.modules or os.getenv("PYTEST_CURRENT_TEST"):
-        return "sqlite:///:memory:"
 
     raise RuntimeError("DATABASE_URL is not configured")
