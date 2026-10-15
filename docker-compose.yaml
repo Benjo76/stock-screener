@@ -1,19 +1,16 @@
-
 services:
   db:
-    image: postgres:16
+    image: postgres:16-alpine
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-stockagent}
       POSTGRES_USER: ${POSTGRES_USER:-stockagent}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test:
-        - CMD-SHELL
-        - pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-stockagent} -d ${POSTGRES_DB:-stockagent}"]
+      interval: 5s
       timeout: 5s
       retries: 5
     networks:
@@ -24,21 +21,23 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    command:
-      - uvicorn
-      - api.main:app
-      - --host
-      - 0.0.0.0
-      - --port
-      - "8000"
     environment:
       DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:-stockagent}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-stockagent}"
-      APP_ENV: ${APP_ENV:-development}
+      APP_ENV: ${APP_ENV:-production}
+      API_KEY: ${API_KEY:-dev-secret-key}
+      FINANCIAL_DATA_PROVIDER: ${FINANCIAL_DATA_PROVIDER:-auto}
+      MAX_UPLOAD_SIZE_BYTES: ${MAX_UPLOAD_SIZE_BYTES:-10485760}
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8000/healthcheck || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     networks:
       - backend
     init: true
@@ -47,19 +46,33 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    profiles:
-      - jobs
-    command: ["python", "-m", "stock_agent.screener"]
+    restart: unless-stopped
+    command: ["python", "-m", "screener.worker"]
     environment:
-      DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:-stockagent}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-stockagent}"
-      APP_ENV: ${APP_ENV:-development}
+      DATABASE_URL: "postgresql+psycopg://${POSTGRES_USER:-stockagent}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-stockagent}"
+      APP_ENV: ${APP_ENV:-production}
+      FINANCIAL_DATA_PROVIDER: ${FINANCIAL_DATA_PROVIDER:-auto}
     depends_on:
       db:
         condition: service_healthy
+      api:
+        condition: service_started
     networks:
       - backend
     init: true
-    restart: "no"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      api:
+        condition: service_started
+    networks:
+      - backend
 
 volumes:
   postgres_data:

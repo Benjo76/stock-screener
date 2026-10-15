@@ -6,3 +6,7 @@ alembic
 pydantic-settings
 pytest
 httpx
+pypdf
+python-multipart
+flake8
+Flake8-pyproject
