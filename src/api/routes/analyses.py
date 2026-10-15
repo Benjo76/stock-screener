@@ -1,12 +1,10 @@
 from fastapi import APIRouter, HTTPException, Query
 
-from api.dependencies import DbSession
-from api.responses import (
+from api.core.dependencies import DbSession
+from api.core.responses import (
     RESPONSE_UNAUTHORIZED,
-    RESPONSE_UNPROCESSABLE_ENTITY,
 )
 from api.schemas.analysis import (
-    AnalysisJobCreate,
     AnalysisJobRead,
     AnalysisResultRead,
 )
@@ -43,7 +41,9 @@ def analyze_stock(
     response_model=AnalysisJobRead,
     status_code=202,
     summary="Trigger portfolio analysis",
-    description="Starts an overall portfolio research analysis covering holdings, diversification, fundamentals, and risks.",
+    description=(
+        "Starts an overall portfolio research analysis covering holdings, diversification, fundamentals, and risks."
+    ),
     responses={
         202: {"description": "Portfolio analysis job accepted / completed"},
         404: {"description": "Portfolio not found"},

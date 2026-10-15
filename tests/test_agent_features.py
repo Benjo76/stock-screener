@@ -1,4 +1,4 @@
-""" Comprehensive tests for Stock Agent features:
+"""Comprehensive tests for Stock Agent features:
 - Securities and portfolio management
 - CSV validation, preview, and execution (holdings & transactions)
 - Duplicates and error handling
@@ -10,34 +10,20 @@
 - Security, Middleware, Upload size limit (413) and Content-Type validation
 """
 
-from datetime import date, datetime
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
 
 from api.main import app
 from screener.analysis.engine import StockAnalysisEngine
-from screener.analysis.portfolio_analyzer import PortfolioAnalyzer
-from screener.analysis.report_analyzer import CompanyReportAnalyzer
 from screener.db.base import Base
-from screener.db.models import (
-    AnalysisJob,
-    AnalysisResult,
-    CompanyReport,
-    FundamentalData,
-    Portfolio,
+from screener.db.models.portfolio import (
     PortfolioHolding,
-    PortfolioTransaction,
-    ReportAnalysis,
-    Stock,
-    StockPrice,
 )
+from screener.db.models.stock import FundamentalData, Stock
 from screener.db.session import SessionLocal, engine
-from screener.importers.csv_importer import CsvPortfolioImporter
 from screener.providers.mock_provider import MockDataProvider
 from screener.services.analysis_service import AnalysisService
 from screener.services.portfolio_service import PortfolioService
-from screener.services.report_service import ReportService
 from screener.services.stock_service import StockService
 from screener.worker import ScreenerWorker
 
@@ -60,7 +46,7 @@ def client():
 def test_stock_service_lookup_and_resolution():
     with SessionLocal() as db:
         mock_provider = MockDataProvider()
-        
+
         # Test creating by ISIN with provider resolution
         stock = StockService.resolve_and_create_stock(
             db=db,
@@ -243,10 +229,10 @@ def test_distinction_between_missing_data_and_negative_metrics():
             fiscal_period="FY",
             revenue=50000.0,
             net_income=-10000.0,  # Actually negative profit
-            gross_margin=None,     # Missing metric
+            gross_margin=None,  # Missing metric
             operating_margin=-0.20,
-            pe_ratio=-15.0,        # Negative PE
-            debt_to_equity=3.5,    # High debt
+            pe_ratio=-15.0,  # Negative PE
+            debt_to_equity=3.5,  # High debt
             data_source="manual",
         )
     ]
@@ -258,7 +244,9 @@ def test_distinction_between_missing_data_and_negative_metrics():
 
 def test_report_analysis_and_unverified_flag(client):
     # 1. Create stock
-    stk_resp = client.post("/stocks", json={"isin": "US0378331005", "ticker": "AAPL", "name": "Apple Inc."}, headers=AUTH_HEADERS)
+    stk_resp = client.post(
+        "/stocks", json={"isin": "US0378331005", "ticker": "AAPL", "name": "Apple Inc."}, headers=AUTH_HEADERS
+    )
     stock_id = stk_resp.json()["id"]
 
     # 2. Post report text
@@ -280,7 +268,7 @@ def test_report_analysis_and_unverified_flag(client):
     assert r_resp.status_code == 201
     report_data = r_resp.json()
     assert len(report_data["analyses"]) == 1
-    
+
     analysis = report_data["analyses"][0]
     # Check that extracted figures are flagged as unverified by default
     assert analysis["is_verified"] is False
@@ -321,7 +309,7 @@ def test_portfolio_analysis_and_versioned_results(client):
     # Run analysis 1
     res1 = client.post(f"/analyses/portfolios/{portfolio_id}", headers=AUTH_HEADERS)
     assert res1.status_code == 202
-    job1_id = res1.json()["id"]
+    assert res1.json()["id"] > 0
 
     # Run analysis 2 (creates version 2)
     res2 = client.post(f"/analyses/portfolios/{portfolio_id}", headers=AUTH_HEADERS)
@@ -343,7 +331,11 @@ def test_upload_size_limit_middleware(client):
     resp = client.post(
         "/portfolios",
         content=large_payload,
-        headers={"X-API-KEY": "test-api-key", "Content-Type": "application/json", "Content-Length": str(len(large_payload))},
+        headers={
+            "X-API-KEY": "test-api-key",
+            "Content-Type": "application/json",
+            "Content-Length": str(len(large_payload)),
+        },
     )
     assert resp.status_code == 413
     assert "Payload Too Large" in resp.json()["detail"]
@@ -370,3 +362,112 @@ def test_screener_worker_processes_pending_jobs():
         assert updated_job.status == "COMPLETED"
         assert len(updated_job.results) == 1
         assert updated_job.results[0].score > 0
+
+
+def test_csv_importer_purchase_price_and_current_price(client):
+    csv_content = (
+        "ISIN,Name,Shares,Purchase Price,Current Price,Currency\n"
+        "US0378331005,Apple Inc.,10,150.00,180.50,EUR\n"
+        "DE0007164600,SAP SE,20,120.00,135.00,EUR\n"
+    )
+
+    # 1. Create Portfolio
+    p_resp = client.post("/portfolios", json={"name": "Depot mit Preisen", "currency": "EUR"}, headers=AUTH_HEADERS)
+    assert p_resp.status_code == 201
+    portfolio_id = p_resp.json()["id"]
+
+    # 2. Preview CSV import
+    prev_resp = client.post(
+        f"/portfolios/{portfolio_id}/import/preview",
+        json={"csv_content": csv_content},
+        headers=AUTH_HEADERS,
+    )
+    assert prev_resp.status_code == 200
+    prev_data = prev_resp.json()
+    assert prev_data["valid_rows_count"] == 2
+    assert prev_data["preview_items"][0]["purchase_price"] == 150.00
+    assert prev_data["preview_items"][0]["current_price"] == 180.50
+
+    # 3. Execute CSV import
+    exec_resp = client.post(
+        f"/portfolios/{portfolio_id}/import",
+        json={"csv_content": csv_content},
+        headers=AUTH_HEADERS,
+    )
+    assert exec_resp.status_code == 200
+    assert exec_resp.json()["imported_count"] == 2
+
+    # 4. Check portfolio details and summary
+    port_resp = client.get(f"/portfolios/{portfolio_id}", headers=AUTH_HEADERS)
+    assert port_resp.status_code == 200
+    port_data = port_resp.json()
+    assert len(port_data["holdings"]) == 2
+    apple_h = next(
+        h for h in port_data["holdings"] if h["stock"]["ticker"] == "AAPL" or h["stock"]["isin"] == "US0378331005"
+    )
+    assert apple_h["purchase_price"] == 150.00
+    assert apple_h["current_price"] == 180.50
+
+    sum_resp = client.get(f"/portfolios/{portfolio_id}/summary", headers=AUTH_HEADERS)
+    assert sum_resp.status_code == 200
+    sum_data = sum_resp.json()
+    assert sum_data["total_cost"] == (10 * 150.00) + (20 * 120.00)  # 1500 + 2400 = 3900.0
+    assert sum_data["total_value"] == (10 * 180.50) + (20 * 135.00)  # 1805 + 2700 = 4505.0
+
+
+def test_manual_holding_with_purchase_price_and_current_price(client):
+    p_resp = client.post("/portfolios", json={"name": "Manuelles Depot", "currency": "EUR"}, headers=AUTH_HEADERS)
+    assert p_resp.status_code == 201
+    portfolio_id = p_resp.json()["id"]
+
+    holding_payload = {
+        "ticker": "MSFT",
+        "name": "Microsoft Corp.",
+        "shares": 5.0,
+        "purchase_price": 350.00,
+        "current_price": 420.00,
+        "currency": "EUR",
+    }
+    h_resp = client.post(f"/portfolios/{portfolio_id}/holdings", json=holding_payload, headers=AUTH_HEADERS)
+    assert h_resp.status_code == 200
+    h_data = h_resp.json()
+    assert h_data["purchase_price"] == 350.00
+    assert h_data["average_buy_price"] == 350.00
+    assert h_data["current_price"] == 420.00
+
+
+def test_csv_importer_german_purchase_and_current_price(client):
+    csv_german = (
+        "ISIN;Name;Stück;Kaufpreis;Aktueller Kurs;Währung\n"
+        "US0378331005;Apple Inc.;10;150,00;180,50;EUR\n"
+        "DE0007164600;SAP SE;20;120,00;135,00;EUR\n"
+    )
+
+    p_resp = client.post("/portfolios", json={"name": "Deutsches Depot", "currency": "EUR"}, headers=AUTH_HEADERS)
+    assert p_resp.status_code == 201
+    portfolio_id = p_resp.json()["id"]
+
+    prev_resp = client.post(
+        f"/portfolios/{portfolio_id}/import/preview",
+        json={"csv_content": csv_german},
+        headers=AUTH_HEADERS,
+    )
+    assert prev_resp.status_code == 200
+    prev_data = prev_resp.json()
+    assert prev_data["valid_rows_count"] == 2
+    assert prev_data["preview_items"][0]["purchase_price"] == 150.00
+    assert prev_data["preview_items"][0]["current_price"] == 180.50
+
+    exec_resp = client.post(
+        f"/portfolios/{portfolio_id}/import",
+        json={"csv_content": csv_german},
+        headers=AUTH_HEADERS,
+    )
+    assert exec_resp.status_code == 200
+    assert exec_resp.json()["imported_count"] == 2
+
+    sum_resp = client.get(f"/portfolios/{portfolio_id}/summary", headers=AUTH_HEADERS)
+    assert sum_resp.status_code == 200
+    sum_data = sum_resp.json()
+    assert sum_data["total_cost"] == 3900.0
+    assert sum_data["total_value"] == 4505.0

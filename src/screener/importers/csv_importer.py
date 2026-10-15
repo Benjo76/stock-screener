@@ -1,4 +1,4 @@
-""" CSV Importer for portfolio holdings and transaction history """
+"""CSV Importer for portfolio holdings and transaction history"""
 
 import csv
 import io
@@ -32,7 +32,7 @@ def parse_number(val: Any) -> float | None:
     elif "," in s:
         # e.g. 1234,56
         s = s.replace(",", ".")
-    
+
     try:
         return float(s)
     except ValueError:
@@ -46,7 +46,7 @@ def parse_date(val: Any) -> datetime | None:
         return val
     if isinstance(val, date):
         return datetime.combine(val, datetime.min.time())
-    
+
     s = str(val).strip()
     if not s:
         return None
@@ -96,6 +96,8 @@ class ParsedHoldingRow:
     name: str | None = None
     shares: float = 0.0
     average_buy_price: float | None = None
+    purchase_price: float | None = None
+    current_price: float | None = None
     total_cost: float | None = None
     currency: str = "EUR"
     is_valid: bool = True
@@ -144,13 +146,68 @@ class CsvPortfolioImporter:
         "ticker": ["ticker", "symbol", "tickersymbol", "ticker_symbol"],
         "name": ["name", "bezeichnung", "wertpapiername", "wertpapier", "security_name", "title"],
         "shares": ["shares", "stueck", "stück", "anzahl", "bestand", "menge", "quantity", "units"],
-        "price": ["price", "kurs", "kaufkurs", "einstandskurs", "preis", "purchase_price", "price_per_share"],
-        "total_amount": ["total", "gesamt", "gesamtwert", "kurswert", "wert", "total_amount", "amount", "betrag", "ausmachender_betrag"],
+        "purchase_price": [
+            "purchase_price",
+            "purchaseprice",
+            "purchase_price_per_share",
+            "kaufpreis",
+            "kaufkurs",
+            "einstandskurs",
+            "einstandspreis",
+            "buy_price",
+            "buyprice",
+            "average_buy_price",
+            "avg_buy_price",
+            "cost_basis",
+            "cost_per_share",
+        ],
+        "current_price": [
+            "current_price",
+            "currentprice",
+            "aktueller_kurs",
+            "aktueller_preis",
+            "akt_kurs",
+            "akt_preis",
+            "marktpreis",
+            "market_price",
+            "last_price",
+            "letzter_kurs",
+            "kurs_aktuell",
+        ],
+        "price": ["price", "kurs", "preis", "price_per_share", "kurs_je_aktie", "preis_je_aktie"],
+        "total_amount": [
+            "total",
+            "gesamt",
+            "gesamtwert",
+            "kurswert",
+            "wert",
+            "total_amount",
+            "amount",
+            "betrag",
+            "ausmachender_betrag",
+        ],
         "fees": ["fees", "gebuehren", "gebühren", "spesen", "kosten", "fee", "courtage"],
         "type": ["type", "typ", "art", "transaktionstyp", "buchungstyp", "geschaeftsart", "geschäftsart", "action"],
-        "date": ["date", "datum", "buchungsdatum", "schlusstag", "ausfuehrungsdatum", "ausführungsdatum", "transaction_date"],
+        "date": [
+            "date",
+            "datum",
+            "buchungsdatum",
+            "schlusstag",
+            "ausfuehrungsdatum",
+            "ausführungsdatum",
+            "transaction_date",
+        ],
         "currency": ["currency", "waehrung", "währung", "curr", "devise"],
-        "external_id": ["id", "tx_id", "transaction_id", "referenz", "auftragsnummer", "order_id", "belegnummer", "ext_id"],
+        "external_id": [
+            "id",
+            "tx_id",
+            "transaction_id",
+            "referenz",
+            "auftragsnummer",
+            "order_id",
+            "belegnummer",
+            "ext_id",
+        ],
         "notes": ["notes", "notizen", "kommentar", "bemerkung", "memo"],
     }
 
@@ -169,7 +226,7 @@ class CsvPortfolioImporter:
             tabs = sample.count("\t")
             if semicolons > commas and semicolons > tabs:
                 return ";"
-            elif tabs > commas:
+            if tabs > commas:
                 return "\t"
             return ","
 
@@ -200,7 +257,7 @@ class CsvPortfolioImporter:
 
         delimiter = cls.detect_delimiter(content)
         reader = csv.reader(io.StringIO(content), delimiter=delimiter)
-        
+
         try:
             headers_raw = next(reader)
         except StopIteration:
@@ -217,7 +274,7 @@ class CsvPortfolioImporter:
         # Determine import type if not forced
         has_type_col = "type" in headers
         has_date_col = "date" in headers
-        
+
         if forced_type:
             import_type = forced_type
         elif has_type_col or has_date_col:
@@ -233,7 +290,10 @@ class CsvPortfolioImporter:
                 total_rows=0,
                 valid_rows_count=0,
                 invalid_rows_count=0,
-                errors=["Could not determine whether CSV contains holdings or transactions. Headers found: " + ", ".join(headers_raw)],
+                errors=[
+                    "Could not determine whether CSV contains holdings or transactions. Headers found: "
+                    + ", ".join(headers_raw)
+                ],
             )
 
         parsed_holdings: list[ParsedHoldingRow] = []
@@ -245,15 +305,9 @@ class CsvPortfolioImporter:
             if not row or all(not cell.strip() for cell in row):
                 continue
 
-            row_dict = {
-                headers[i]: row[i].strip() if i < len(row) else ""
-                for i in range(len(headers))
-            }
+            row_dict = {headers[i]: row[i].strip() if i < len(row) else "" for i in range(len(headers))}
             # Also keep raw
-            raw_dict = {
-                headers_raw[i]: row[i].strip() if i < len(row) else ""
-                for i in range(len(headers_raw))
-            }
+            raw_dict = {headers_raw[i]: row[i].strip() if i < len(row) else "" for i in range(len(headers_raw))}
 
             if import_type == "holdings":
                 cls._process_holding_row(row_idx, row_dict, raw_dict, parsed_holdings)
@@ -261,7 +315,11 @@ class CsvPortfolioImporter:
                 cls._process_transaction_row(row_idx, row_dict, raw_dict, parsed_transactions)
 
         total_rows = len(parsed_holdings) if import_type == "holdings" else len(parsed_transactions)
-        valid_rows = sum(1 for r in parsed_holdings if r.is_valid) if import_type == "holdings" else sum(1 for r in parsed_transactions if r.is_valid)
+        valid_rows = (
+            sum(1 for r in parsed_holdings if r.is_valid)
+            if import_type == "holdings"
+            else sum(1 for r in parsed_transactions if r.is_valid)
+        )
         invalid_rows = total_rows - valid_rows
 
         return CsvValidationResult(
@@ -286,7 +344,7 @@ class CsvPortfolioImporter:
         ticker = row_dict.get("ticker")
         name = row_dict.get("name")
         currency = row_dict.get("currency") or "EUR"
-        
+
         errors = []
         if isin:
             isin = isin.upper()
@@ -296,7 +354,7 @@ class CsvPortfolioImporter:
             wkn = wkn.upper()
             if not validate_wkn(wkn):
                 errors.append(f"Invalid WKN format: '{wkn}'")
-        
+
         if not isin and not wkn and not ticker:
             errors.append("At least one security identifier (ISIN, WKN or Ticker) is required")
 
@@ -307,13 +365,22 @@ class CsvPortfolioImporter:
         elif shares_val < 0:
             errors.append("Shares / Quantity cannot be negative")
 
+        purchase_price_val = parse_number(row_dict.get("purchase_price"))
+        current_price_val = parse_number(row_dict.get("current_price"))
         price_val = parse_number(row_dict.get("price"))
-        if price_val is not None and price_val < 0:
-            errors.append("Average buy price cannot be negative")
+
+        if purchase_price_val is None and price_val is not None:
+            purchase_price_val = price_val
+
+        if purchase_price_val is not None and purchase_price_val < 0:
+            errors.append("Purchase price cannot be negative")
+
+        if current_price_val is not None and current_price_val < 0:
+            errors.append("Current price cannot be negative")
 
         total_cost_val = parse_number(row_dict.get("total_amount"))
-        if total_cost_val is None and price_val is not None and shares_val:
-            total_cost_val = round(shares_val * price_val, 2)
+        if total_cost_val is None and purchase_price_val is not None and shares_val:
+            total_cost_val = round(shares_val * purchase_price_val, 2)
         elif total_cost_val is not None and total_cost_val < 0:
             errors.append("Total cost cannot be negative")
 
@@ -326,7 +393,9 @@ class CsvPortfolioImporter:
                 ticker=ticker.upper() if ticker else None,
                 name=name,
                 shares=shares_val,
-                average_buy_price=price_val,
+                average_buy_price=purchase_price_val,
+                purchase_price=purchase_price_val,
+                current_price=current_price_val,
                 total_cost=total_cost_val,
                 currency=currency.upper()[:3] if currency else "EUR",
                 is_valid=(len(errors) == 0),
@@ -388,6 +457,8 @@ class CsvPortfolioImporter:
             errors.append("Shares cannot be negative")
 
         price_val = parse_number(row_dict.get("price"))
+        if price_val is None:
+            price_val = parse_number(row_dict.get("purchase_price"))
         fees_val = parse_number(row_dict.get("fees")) or 0.0
         if fees_val < 0:
             errors.append("Fees cannot be negative")

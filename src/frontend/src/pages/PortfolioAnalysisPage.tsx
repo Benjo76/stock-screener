@@ -254,33 +254,59 @@ export const PortfolioAnalysisPage: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {summary.top_holdings.map((h) => (
-                      <TableRow key={h.stock_id}>
-                        <TableCell>
-                          <Link to={`/analysis?stockId=${h.stock_id}`} className="font-semibold text-xs hover:underline">
-                            {h.name}
-                          </Link>
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-xs">{h.shares}</TableCell>
-                        <TableCell className="text-right text-xs">
-                          {h.total_cost !== null ? formatCurrency(h.total_cost, h.currency) : '—'}
-                        </TableCell>
-                        <TableCell className="text-right font-bold text-xs">
-                          {h.market_value !== null ? formatCurrency(h.market_value, h.currency) : 'Keine Kurse'}
-                        </TableCell>
-                        <TableCell className="text-right text-xs font-semibold">
-                          {h.gain_loss !== null ? (
-                            <span className={h.gain_loss >= 0 ? 'text-emerald-500' : 'text-rose-500'}>
-                              {h.gain_loss >= 0 ? '+' : ''}{formatCurrency(h.gain_loss, h.currency)}
-                              {h.return_pct !== null && ` (${formatPercent(h.return_pct)})`}
-                            </span>
-                          ) : '—'}
-                        </TableCell>
-                        <TableCell className="text-right text-xs">
-                          <Badge variant="secondary">{h.weight_pct?.toFixed(1) || '0.0'} %</Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {summary.top_holdings.map((rawH) => {
+                      const buyPrice = rawH.purchase_price ?? rawH.average_buy_price ?? null;
+                      const currentPrice = rawH.current_price ?? null;
+                      const shares = rawH.shares || 0;
+                      const totalCost = rawH.total_cost ?? (buyPrice !== null ? buyPrice * shares : null);
+                      const marketValue = rawH.market_value ?? (currentPrice !== null ? currentPrice * shares : null);
+                      let gainLoss = rawH.gain_loss ?? null;
+                      let returnPct = rawH.return_pct ?? null;
+
+                      if (gainLoss === null && marketValue !== null && totalCost !== null) {
+                        gainLoss = marketValue - totalCost;
+                      } else if (gainLoss === null && currentPrice !== null && buyPrice !== null && shares > 0) {
+                        gainLoss = (currentPrice - buyPrice) * shares;
+                      }
+
+                      if (returnPct === null && totalCost !== null && totalCost > 0 && gainLoss !== null) {
+                        returnPct = (gainLoss / totalCost) * 100;
+                      } else if (returnPct === null && buyPrice !== null && buyPrice > 0 && currentPrice !== null) {
+                        returnPct = ((currentPrice - buyPrice) / buyPrice) * 100;
+                      }
+
+                      return (
+                        <TableRow key={rawH.stock_id}>
+                          <TableCell>
+                            <Link to={`/analysis?stockId=${rawH.stock_id}`} className="font-semibold text-xs hover:underline">
+                              {rawH.name}
+                            </Link>
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-xs">{rawH.shares}</TableCell>
+                          <TableCell className="text-right text-xs">
+                            {totalCost !== null ? formatCurrency(totalCost, rawH.currency) : '—'}
+                          </TableCell>
+                          <TableCell className="text-right font-bold text-xs">
+                            {marketValue !== null ? formatCurrency(marketValue, rawH.currency) : (totalCost !== null ? formatCurrency(totalCost, rawH.currency) : 'Keine Kurse')}
+                          </TableCell>
+                          <TableCell className="text-right text-xs font-semibold">
+                            {gainLoss !== null ? (
+                              <div className={`flex flex-col items-end ${gainLoss >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                <span>
+                                  {gainLoss >= 0 ? '+' : ''}{formatCurrency(gainLoss, rawH.currency)}
+                                </span>
+                                <span className="text-[11px] font-medium opacity-90">
+                                  {returnPct !== null ? formatPercent(returnPct) : '—'}
+                                </span>
+                              </div>
+                            ) : '—'}
+                          </TableCell>
+                          <TableCell className="text-right text-xs">
+                            <Badge variant="secondary">{rawH.weight_pct?.toFixed(1) || '0.0'} %</Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               ) : (

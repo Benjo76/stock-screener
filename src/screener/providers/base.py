@@ -1,8 +1,8 @@
-""" Base financial data provider interface """
+"""Base financial data provider interface"""
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date
 from typing import Any
 
 
@@ -86,12 +86,10 @@ class BaseDataProvider(ABC):
     @abstractmethod
     def provider_name(self) -> str:
         """Name of the data provider."""
-        pass
 
     @abstractmethod
     def lookup_stock(self, identifier: str) -> StockProfile | None:
         """Lookup stock profile by ISIN, WKN or Ticker."""
-        pass
 
     @abstractmethod
     def get_historical_prices(
@@ -101,14 +99,11 @@ class BaseDataProvider(ABC):
         end_date: date | None = None,
     ) -> list[HistoricalPriceData]:
         """Fetch historical price data."""
-        pass
 
     @abstractmethod
     def get_fundamental_data(self, identifier: str) -> list[FundamentalPeriodData]:
         """Fetch fundamental data across periods."""
-        pass
 
     @abstractmethod
     def get_company_reports(self, identifier: str) -> list[ReportDocumentData]:
         """Fetch recent company reports."""
-        pass

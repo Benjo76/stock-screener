@@ -1,8 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy.orm import selectinload
 
-from api.dependencies import DbSession
-from api.responses import (
+from api.core.dependencies import DbSession
+from api.core.responses import (
     RESPONSE_CONFLICT_STOCK,
     RESPONSE_UNAUTHORIZED,
     RESPONSE_UNPROCESSABLE_ENTITY,
@@ -193,7 +192,6 @@ def update_stock(stock_id: int, payload: StockUpdate, db: DbSession):
 )
 def delete_stock(stock_id: int, db: DbSession):
     StockService.delete_stock(db, stock_id)
-    return None
 
 
 @router.get(

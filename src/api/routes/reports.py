@@ -1,7 +1,7 @@
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
-from api.dependencies import DbSession
-from api.responses import (
+from api.core.dependencies import DbSession
+from api.core.responses import (
     RESPONSE_UNAUTHORIZED,
     RESPONSE_UNPROCESSABLE_ENTITY,
 )
@@ -64,8 +64,10 @@ async def upload_report(
 ):
     file_bytes = await file.read()
     content_text = ReportService.extract_text_from_file(file_bytes, file.filename or "report.txt")
-    
-    report_title = title or (file.filename.rsplit(".", 1)[0] if file.filename else f"{report_type} {fiscal_year or ''}".strip())
+
+    report_title = title or (
+        file.filename.rsplit(".", 1)[0] if file.filename else f"{report_type} {fiscal_year or ''}".strip()
+    )
 
     return ReportService.create_and_analyze_report(
         db=db,
@@ -85,7 +87,10 @@ async def upload_report(
     response_model=CompanyReportRead,
     status_code=201,
     summary="Add and optionally analyze a company report",
-    description="Stores quarterly or annual company report text and automatically extracts KPIs, statements, risks, and trends.",
+    description=(
+        "Stores quarterly or annual company report text and automatically "
+        "extracts KPIs, statements, risks, and trends."
+    ),
     responses={
         201: {"description": "Report stored and processed"},
         404: {"description": "Stock not found"},
@@ -133,7 +138,6 @@ def get_report(report_id: int, db: DbSession):
 )
 def delete_report(report_id: int, db: DbSession):
     ReportService.delete_report(db, report_id)
-    return None
 
 
 @router.post(

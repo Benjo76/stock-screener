@@ -1,4 +1,4 @@
-""" Portfolio management and CSV import service """
+"""Portfolio management and CSV import service"""
 
 from datetime import datetime
 from typing import Any, Literal
@@ -7,12 +7,12 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from screener.db.models import (
+from screener.db.models.portfolio import (
     Portfolio,
     PortfolioHolding,
     PortfolioTransaction,
-    Stock,
 )
+from screener.db.models.stock import StockPrice
 from screener.importers.csv_importer import (
     CsvPortfolioImporter,
     CsvValidationResult,
@@ -55,7 +55,7 @@ class PortfolioService:
     ) -> Portfolio:
         if not name or not name.strip():
             raise HTTPException(status_code=422, detail="Portfolio name cannot be empty")
-        
+
         portfolio = Portfolio(
             name=name.strip(),
             description=description.strip() if description else None,
@@ -149,6 +149,28 @@ class PortfolioService:
                     db.add(holding)
                     db.flush()
 
+                if row.current_price is not None:
+                    today = now.date()
+                    existing_sp = db.scalar(
+                        select(StockPrice).where(
+                            StockPrice.stock_id == stock.id,
+                            StockPrice.date == today,
+                            StockPrice.data_source == "csv_import",
+                        )
+                    )
+                    if existing_sp:
+                        existing_sp.close = row.current_price
+                    else:
+                        db.add(
+                            StockPrice(
+                                stock_id=stock.id,
+                                date=today,
+                                close=row.current_price,
+                                currency=row.currency or "EUR",
+                                data_source="csv_import",
+                            )
+                        )
+
                 imported_count += 1
 
             db.commit()
@@ -170,11 +192,13 @@ class PortfolioService:
                     )
                     if existing_tx:
                         skipped_count += 1
-                        row_errors.append({
-                            "row": row.row_number,
-                            "errors": [f"Duplicate external transaction ID: '{row.external_transaction_id}'"],
-                            "data": row.raw_data,
-                        })
+                        row_errors.append(
+                            {
+                                "row": row.row_number,
+                                "errors": [f"Duplicate external transaction ID: '{row.external_transaction_id}'"],
+                                "data": row.raw_data,
+                            }
+                        )
                         continue
 
                 stock = StockService.resolve_and_create_stock(
@@ -283,6 +307,7 @@ class PortfolioService:
         name: str | None = None,
         shares: float = 0.0,
         average_buy_price: float | None = None,
+        current_price: float | None = None,
         currency: str = "EUR",
     ) -> PortfolioHolding:
         portfolio = cls.get_portfolio_by_id(db, portfolio_id)
@@ -329,6 +354,28 @@ class PortfolioService:
                 last_imported_at=now,
             )
             db.add(holding)
+
+        if current_price is not None:
+            today = now.date()
+            existing_sp = db.scalar(
+                select(StockPrice).where(
+                    StockPrice.stock_id == stock.id,
+                    StockPrice.date == today,
+                    StockPrice.data_source == "manual",
+                )
+            )
+            if existing_sp:
+                existing_sp.close = current_price
+            else:
+                db.add(
+                    StockPrice(
+                        stock_id=stock.id,
+                        date=today,
+                        close=current_price,
+                        currency=currency,
+                        data_source="manual",
+                    )
+                )
 
         portfolio.updated_at = now
         db.commit()
@@ -435,8 +482,6 @@ class PortfolioService:
         if not portfolio:
             raise HTTPException(status_code=404, detail="Portfolio not found")
 
-        from screener.db.models import StockPrice
-
         total_cost = 0.0
         total_value = 0.0
         has_prices = False
@@ -446,17 +491,18 @@ class PortfolioService:
 
         for h in portfolio.holdings:
             stk = h.stock
-            cost = h.total_cost if h.total_cost is not None else ((h.shares * h.average_buy_price) if h.average_buy_price else 0.0)
+            cost = (
+                h.total_cost
+                if h.total_cost is not None
+                else ((h.shares * h.average_buy_price) if h.average_buy_price else 0.0)
+            )
             total_cost += cost
 
             # get latest price
             latest_price = None
             if stk:
                 latest_price = db.scalar(
-                    select(StockPrice)
-                    .where(StockPrice.stock_id == stk.id)
-                    .order_by(StockPrice.date.desc())
-                    .limit(1)
+                    select(StockPrice).where(StockPrice.stock_id == stk.id).order_by(StockPrice.date.desc()).limit(1)
                 )
 
             m_val = None
@@ -469,31 +515,34 @@ class PortfolioService:
                 if cost > 0:
                     gain_loss = round(m_val - cost, 2)
                     return_pct = round((gain_loss / cost) * 100, 2)
-            
+
             sector = stk.sector if (stk and stk.sector) else "Unclassified"
             curr = h.currency or portfolio.currency or "EUR"
-            
+
             # Allocation by value or cost
             alloc_base = m_val if m_val is not None else cost
             sector_allocation[sector] = sector_allocation.get(sector, 0.0) + alloc_base
             currency_allocation[curr] = currency_allocation.get(curr, 0.0) + alloc_base
 
-            top_holdings.append({
-                "holding_id": h.id,
-                "stock_id": stk.id if stk else None,
-                "name": stk.name if stk else "Unknown",
-                "ticker": stk.ticker if stk else None,
-                "isin": stk.isin if stk else None,
-                "shares": h.shares,
-                "average_buy_price": h.average_buy_price,
-                "current_price": latest_price.close if latest_price else None,
-                "total_cost": round(cost, 2),
-                "market_value": m_val,
-                "gain_loss": gain_loss,
-                "return_pct": return_pct,
-                "currency": curr,
-                "sector": sector,
-            })
+            top_holdings.append(
+                {
+                    "holding_id": h.id,
+                    "stock_id": stk.id if stk else None,
+                    "name": stk.name if stk else "Unknown",
+                    "ticker": stk.ticker if stk else None,
+                    "isin": stk.isin if stk else None,
+                    "shares": h.shares,
+                    "average_buy_price": h.average_buy_price,
+                    "purchase_price": h.average_buy_price,
+                    "current_price": latest_price.close if latest_price else None,
+                    "total_cost": round(cost, 2),
+                    "market_value": m_val,
+                    "gain_loss": gain_loss,
+                    "return_pct": return_pct,
+                    "currency": curr,
+                    "sector": sector,
+                }
+            )
 
         # Calculate weights and normalize allocation percentages
         effective_total = total_value if has_prices and total_value > 0 else (total_cost if total_cost > 0 else 1.0)
@@ -501,14 +550,20 @@ class PortfolioService:
             val = th["market_value"] if th["market_value"] is not None else th["total_cost"]
             th["weight_pct"] = round((val / effective_total) * 100, 2) if effective_total > 0 else 0.0
 
-        top_holdings.sort(key=lambda x: (x["market_value"] if x["market_value"] is not None else x["total_cost"]), reverse=True)
+        top_holdings.sort(
+            key=lambda x: (x["market_value"] if x["market_value"] is not None else x["total_cost"]), reverse=True
+        )
 
         sector_pcts = {k: round((v / effective_total) * 100, 2) for k, v in sector_allocation.items()}
         curr_pcts = {k: round((v / effective_total) * 100, 2) for k, v in currency_allocation.items()}
 
         final_total_val = round(total_value, 2) if has_prices else None
         final_gain_loss = round(total_value - total_cost, 2) if (has_prices and total_cost is not None) else None
-        final_return_pct = round(((total_value - total_cost) / total_cost) * 100, 2) if (has_prices and total_cost and total_cost > 0) else None
+        final_return_pct = (
+            round(((total_value - total_cost) / total_cost) * 100, 2)
+            if (has_prices and total_cost and total_cost > 0)
+            else None
+        )
 
         return {
             "portfolio_id": portfolio.id,

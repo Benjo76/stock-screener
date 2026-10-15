@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from sqlalchemy import text
 
-from api.dependencies import DbSession
+from api.core.dependencies import DbSession
 
 router = APIRouter(tags=["System"])
 
@@ -13,11 +13,7 @@ router = APIRouter(tags=["System"])
     responses={
         200: {
             "description": "Service is healthy and running",
-            "content": {
-                "application/json": {
-                    "example": {"status": "ok", "service": "stock-agent"}
-                }
-            },
+            "content": {"application/json": {"example": {"status": "ok", "service": "stock-agent"}}},
         }
     },
 )
@@ -35,11 +31,7 @@ def healthcheck():
     responses={
         200: {
             "description": "Database is connected and reachable",
-            "content": {
-                "application/json": {
-                    "example": {"status": "ok", "database": "connected"}
-                }
-            },
+            "content": {"application/json": {"example": {"status": "ok", "database": "connected"}}},
         }
     },
 )

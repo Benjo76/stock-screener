@@ -1,7 +1,6 @@
-""" Analysis Job and Results persistence service """
+"""Analysis Job and Results persistence service"""
 
 from datetime import datetime
-from typing import Any
 
 from fastapi import HTTPException
 from sqlalchemy import func, select
@@ -9,13 +8,9 @@ from sqlalchemy.orm import Session, selectinload
 
 from screener.analysis.engine import StockAnalysisEngine
 from screener.analysis.portfolio_analyzer import PortfolioAnalyzer
-from screener.db.models import (
-    AnalysisJob,
-    AnalysisResult,
-    Portfolio,
-    PortfolioHolding,
-    Stock,
-)
+from screener.db.models.job import AnalysisJob, AnalysisResult
+from screener.db.models.portfolio import Portfolio, PortfolioHolding
+from screener.db.models.stock import Stock
 from screener.services.stock_service import StockService
 
 
@@ -154,11 +149,12 @@ class AnalysisService:
         evaluation = StockAnalysisEngine.analyze(stock, stock.fundamentals, stock.prices)
 
         # Get latest version number for this stock
-        max_version = db.scalar(
-            select(func.coalesce(func.max(AnalysisResult.version), 0)).where(
-                AnalysisResult.stock_id == stock.id
+        max_version = (
+            db.scalar(
+                select(func.coalesce(func.max(AnalysisResult.version), 0)).where(AnalysisResult.stock_id == stock.id)
             )
-        ) or 0
+            or 0
+        )
         new_version = max_version + 1
 
         details = {
@@ -214,11 +210,14 @@ class AnalysisService:
 
         evaluation = PortfolioAnalyzer.analyze_portfolio(portfolio)
 
-        max_version = db.scalar(
-            select(func.coalesce(func.max(AnalysisResult.version), 0)).where(
-                AnalysisResult.portfolio_id == portfolio.id
+        max_version = (
+            db.scalar(
+                select(func.coalesce(func.max(AnalysisResult.version), 0)).where(
+                    AnalysisResult.portfolio_id == portfolio.id
+                )
             )
-        ) or 0
+            or 0
+        )
         new_version = max_version + 1
 
         details = {
@@ -331,9 +330,7 @@ class AnalysisService:
     @classmethod
     def run_pending_jobs(cls, db: Session) -> int:
         pending_jobs = list(
-            db.scalars(
-                select(AnalysisJob).where(AnalysisJob.status == "PENDING").order_by(AnalysisJob.id)
-            ).all()
+            db.scalars(select(AnalysisJob).where(AnalysisJob.status == "PENDING").order_by(AnalysisJob.id)).all()
         )
         count = 0
         for job in pending_jobs:

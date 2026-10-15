@@ -12,7 +12,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 
 from screener.config import get_database_url
 from screener.db.base import Base
-import screener.db.models  # noqa
+import screener.db.models.job  # noqa
+import screener.db.models.portfolio  # noqa
+import screener.db.models.report  # noqa
+import screener.db.models.stock  # noqa
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

@@ -57,6 +57,7 @@ export const StocksPage: React.FC = () => {
   const [targetPortfolioId, setTargetPortfolioId] = useState<number | ''>('');
   const [assignShares, setAssignShares] = useState('10');
   const [assignPrice, setAssignPrice] = useState('');
+  const [assignCurrentPrice, setAssignCurrentPrice] = useState('');
 
   // Queries
   const {
@@ -137,6 +138,8 @@ export const StocksPage: React.FC = () => {
         stock_id: selectedStock?.id,
         shares: parseFloat(assignShares),
         average_buy_price: assignPrice ? parseFloat(assignPrice) : undefined,
+        purchase_price: assignPrice ? parseFloat(assignPrice) : undefined,
+        current_price: assignCurrentPrice ? parseFloat(assignCurrentPrice) : undefined,
         currency: selectedStock?.currency || 'EUR',
       }),
     onSuccess: () => {
@@ -147,6 +150,7 @@ export const StocksPage: React.FC = () => {
       setTargetPortfolioId('');
       setAssignShares('10');
       setAssignPrice('');
+      setAssignCurrentPrice('');
     },
   });
 
@@ -656,7 +660,7 @@ export const StocksPage: React.FC = () => {
             ))}
           </Select>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Input
               label="Stückzahl *"
               type="number"
@@ -666,12 +670,20 @@ export const StocksPage: React.FC = () => {
               required
             />
             <Input
-              label={`Einstandspreis je Aktie (${selectedStock?.currency || 'EUR'})`}
+              label={`Kaufpreis (Purchase Price) je Aktie (${selectedStock?.currency || 'EUR'})`}
               type="number"
               step="any"
               placeholder="z. B. 150.00"
               value={assignPrice}
               onChange={(e) => setAssignPrice(e.target.value)}
+            />
+            <Input
+              label={`Aktueller Kurs (Current Price) je Aktie (${selectedStock?.currency || 'EUR'})`}
+              type="number"
+              step="any"
+              placeholder="z. B. 180.00"
+              value={assignCurrentPrice}
+              onChange={(e) => setAssignCurrentPrice(e.target.value)}
             />
           </div>
 

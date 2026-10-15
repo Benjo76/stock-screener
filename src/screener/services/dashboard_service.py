@@ -1,21 +1,14 @@
-""" Dashboard aggregation and system status service """
+"""Dashboard aggregation and system status service"""
 
 from datetime import date, datetime, timedelta
 from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from screener.db.models import (
-    AnalysisJob,
-    AnalysisResult,
-    CompanyReport,
-    FundamentalData,
-    Portfolio,
-    PortfolioHolding,
-    ReportAnalysis,
-    Stock,
-    StockPrice,
-)
+from screener.db.models.job import AnalysisJob, AnalysisResult
+from screener.db.models.portfolio import Portfolio, PortfolioHolding
+from screener.db.models.report import CompanyReport
+from screener.db.models.stock import Stock, StockPrice
 from screener.providers.manager import get_data_provider
 
 
@@ -24,10 +17,7 @@ class DashboardService:
     def get_dashboard_summary(cls, db: Session) -> dict[str, Any]:
         portfolios = list(
             db.scalars(
-                select(Portfolio)
-                .options(
-                    selectinload(Portfolio.holdings).selectinload(PortfolioHolding.stock)
-                )
+                select(Portfolio).options(selectinload(Portfolio.holdings).selectinload(PortfolioHolding.stock))
             ).all()
         )
 
@@ -53,7 +43,11 @@ class DashboardService:
                 if stk:
                     stocks_seen.add(stk.id)
 
-                cost = h.total_cost if h.total_cost is not None else ((h.shares * h.average_buy_price) if h.average_buy_price else 0.0)
+                cost = (
+                    h.total_cost
+                    if h.total_cost is not None
+                    else ((h.shares * h.average_buy_price) if h.average_buy_price else 0.0)
+                )
                 total_cost += cost
 
                 latest_price = None
@@ -78,22 +72,28 @@ class DashboardService:
                         return_pct = round((gain_loss / cost) * 100, 2)
 
                     if latest_price.date < seven_days_ago:
-                        data_warnings.append({
-                            "severity": "warning",
-                            "stock_id": stk.id if stk else None,
-                            "stock_name": stk.name if stk else "Unbekannt",
-                            "message": f"Kursdaten für {stk.name or stk.ticker or 'Wertpapier'} sind älter als 7 Tage ({latest_price.date}).",
-                            "recommendation": "Marktdaten-Synchronisation ausführen.",
-                        })
+                        stk_ident = stk.name or stk.ticker or "Wertpapier"
+                        data_warnings.append(
+                            {
+                                "severity": "warning",
+                                "stock_id": stk.id if stk else None,
+                                "stock_name": stk.name if stk else "Unbekannt",
+                                "message": f"Kursdaten für {stk_ident} sind älter als 7 Tage ({latest_price.date}).",
+                                "recommendation": "Marktdaten-Synchronisation ausführen.",
+                            }
+                        )
                 else:
                     if stk:
-                        data_warnings.append({
-                            "severity": "warning",
-                            "stock_id": stk.id,
-                            "stock_name": stk.name or stk.ticker or f"ID {stk.id}",
-                            "message": f"Keine aktuellen Kursdaten für {stk.name or stk.ticker or 'Wertpapier'} vorhanden.",
-                            "recommendation": "Über 'Wertpapiere' oder 'Aktienanalyse' Daten synchronisieren.",
-                        })
+                        stk_ident = stk.name or stk.ticker or "Wertpapier"
+                        data_warnings.append(
+                            {
+                                "severity": "warning",
+                                "stock_id": stk.id,
+                                "stock_name": stk.name or stk.ticker or f"ID {stk.id}",
+                                "message": f"Keine aktuellen Kursdaten für {stk_ident} vorhanden.",
+                                "recommendation": "Über 'Wertpapiere' oder 'Aktienanalyse' Daten synchronisieren.",
+                            }
+                        )
 
                 sector = stk.sector if (stk and stk.sector) else "Nicht zugeordnet"
                 curr = h.currency or p.currency or "EUR"
@@ -102,23 +102,26 @@ class DashboardService:
                 sector_allocation[sector] = sector_allocation.get(sector, 0.0) + alloc_base
                 currency_allocation[curr] = currency_allocation.get(curr, 0.0) + alloc_base
 
-                all_holdings.append({
-                    "stock_id": stk.id if stk else 0,
-                    "portfolio_id": p.id,
-                    "portfolio_name": p.name,
-                    "name": stk.name if stk else "Unbekannt",
-                    "ticker": stk.ticker if stk else None,
-                    "isin": stk.isin if stk else None,
-                    "shares": h.shares,
-                    "average_buy_price": h.average_buy_price,
-                    "current_price": latest_price.close if latest_price else None,
-                    "total_cost": round(cost, 2),
-                    "market_value": m_val,
-                    "gain_loss": gain_loss,
-                    "return_pct": return_pct,
-                    "currency": curr,
-                    "sector": sector,
-                })
+                all_holdings.append(
+                    {
+                        "stock_id": stk.id if stk else 0,
+                        "portfolio_id": p.id,
+                        "portfolio_name": p.name,
+                        "name": stk.name if stk else "Unbekannt",
+                        "ticker": stk.ticker if stk else None,
+                        "isin": stk.isin if stk else None,
+                        "shares": h.shares,
+                        "average_buy_price": h.average_buy_price,
+                        "purchase_price": h.average_buy_price,
+                        "current_price": latest_price.close if latest_price else None,
+                        "total_cost": round(cost, 2),
+                        "market_value": m_val,
+                        "gain_loss": gain_loss,
+                        "return_pct": return_pct,
+                        "currency": curr,
+                        "sector": sector,
+                    }
+                )
 
         # Calculate position weights
         effective_total = total_value if (has_prices and total_value > 0) else (total_cost if total_cost > 0 else 1.0)
@@ -126,7 +129,9 @@ class DashboardService:
             val = item["market_value"] if item["market_value"] is not None else item["total_cost"]
             item["weight_pct"] = round((val / effective_total) * 100, 2) if effective_total > 0 else 0.0
 
-        all_holdings.sort(key=lambda x: (x["market_value"] if x["market_value"] is not None else x["total_cost"]), reverse=True)
+        all_holdings.sort(
+            key=lambda x: (x["market_value"] if x["market_value"] is not None else x["total_cost"]), reverse=True
+        )
         top_positions = all_holdings[:10]
 
         sector_pcts = {k: round((v / effective_total) * 100, 2) for k, v in sector_allocation.items()}
@@ -134,7 +139,11 @@ class DashboardService:
 
         final_total_val = round(total_value, 2) if has_prices else None
         final_gain_loss = round(total_value - total_cost, 2) if (has_prices and total_cost is not None) else None
-        final_return_pct = round(((total_value - total_cost) / total_cost) * 100, 2) if (has_prices and total_cost and total_cost > 0) else None
+        final_return_pct = (
+            round(((total_value - total_cost) / total_cost) * 100, 2)
+            if (has_prices and total_cost and total_cost > 0)
+            else None
+        )
 
         # Fetch recent analyses, jobs, reports
         recent_analyses = list(
@@ -181,16 +190,18 @@ class DashboardService:
             history_dates = [(today - timedelta(days=i)) for i in range(29, -1, -5)]
             if today not in history_dates:
                 history_dates.append(today)
-            
+
             # Simple simulation / historical price aggregation
             for d in history_dates:
                 d_str = d.strftime("%Y-%m-%d")
                 # compute ratio for date or trend
-                performance_history.append({
-                    "date": d_str,
-                    "total_value": round(final_total_val, 2),
-                    "total_cost": round(total_cost, 2),
-                })
+                performance_history.append(
+                    {
+                        "date": d_str,
+                        "total_value": round(final_total_val, 2),
+                        "total_cost": round(total_cost, 2),
+                    }
+                )
 
         return {
             "total_portfolio_value": final_total_val,

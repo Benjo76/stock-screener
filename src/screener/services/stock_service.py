@@ -1,6 +1,5 @@
-""" Stock management and financial data synchronization service """
+"""Stock management and financial data synchronization service"""
 
-from datetime import date, datetime
 from typing import Any
 
 from fastapi import HTTPException
@@ -8,7 +7,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
-from screener.db.models import FundamentalData, Stock, StockPrice
+from screener.db.models.stock import FundamentalData, Stock, StockPrice
 from screener.importers.csv_importer import validate_isin, validate_wkn
 from screener.providers.base import BaseDataProvider
 from screener.providers.manager import get_data_provider
@@ -149,7 +148,7 @@ class StockService:
         db.add(stock)
         try:
             db.commit()
-        except IntegrityError:
+        except IntegrityError as exc:
             db.rollback()
             existing = cls.get_stock_by_identifier(db, isin=isin_clean, wkn=wkn_clean, ticker=ticker_clean)
             if existing:
@@ -157,7 +156,7 @@ class StockService:
             raise HTTPException(
                 status_code=409,
                 detail="A stock with this ISIN, WKN, or Ticker already exists.",
-            )
+            ) from exc
 
         db.refresh(stock)
         return stock
@@ -261,7 +260,7 @@ class StockService:
         stock = cls.get_stock_by_id(db, stock_id)
         if not stock:
             raise HTTPException(status_code=404, detail="Stock not found")
-        
+
         for key, value in kwargs.items():
             if hasattr(stock, key) and value is not None:
                 if key in ["isin", "wkn", "ticker"] and isinstance(value, str):
@@ -270,13 +269,13 @@ class StockService:
                     setattr(stock, key, value.strip().upper()[:3])
                 else:
                     setattr(stock, key, value)
-        
+
         try:
             db.commit()
             db.refresh(stock)
-        except IntegrityError:
+        except IntegrityError as exc:
             db.rollback()
-            raise HTTPException(status_code=409, detail="Identifier already in use by another stock.")
+            raise HTTPException(status_code=409, detail="Identifier already in use by another stock.") from exc
         return stock
 
     @classmethod
@@ -316,7 +315,7 @@ class StockService:
                 "provider": "local_database",
                 "message": "Stock found in local database",
             }
-        
+
         active_provider = provider or get_data_provider()
         profile = active_provider.lookup_stock(q)
         if profile and profile.name:
@@ -334,7 +333,7 @@ class StockService:
                 "provider": active_provider.provider_name,
                 "message": f"Stock resolved via {active_provider.provider_name}",
             }
-        
+
         return {
             "resolved": False,
             "isin": q if validate_isin(q) else None,
