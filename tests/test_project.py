@@ -1,14 +1,9 @@
-""" Tests for the Stock Agent API """
+"""Tests for the Stock Agent API"""
 
-import os
 from pathlib import Path
 import pytest
 import yaml
 from fastapi.testclient import TestClient
-
-# Ensure test environment uses memory sqlite
-os.environ["APP_ENV"] = "test"
-os.environ["API_KEY"] = "test-api-key"
 
 from api.main import app
 from screener.db.base import Base

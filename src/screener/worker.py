@@ -1,4 +1,4 @@
-""" Background screener worker for processing analysis jobs """
+"""Background screener worker for processing analysis jobs"""
 
 from screener.core.worker import ScreenerWorker, run
 

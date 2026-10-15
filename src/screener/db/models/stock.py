@@ -129,7 +129,9 @@ class StockPrice(Base):
 class FundamentalData(Base):
     __tablename__ = "fundamental_data"
     __table_args__ = (
-        UniqueConstraint("stock_id", "period_type", "fiscal_year", "fiscal_period", "data_source", name="uq_stock_fundamental_period"),
+        UniqueConstraint(
+            "stock_id", "period_type", "fiscal_year", "fiscal_period", "data_source", name="uq_stock_fundamental_period"
+        ),
         Index("ix_fundamental_data_stock_period", "stock_id", "fiscal_year", "fiscal_period"),
     )
 
@@ -139,14 +141,14 @@ class FundamentalData(Base):
     fiscal_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
     fiscal_period: Mapped[str | None] = mapped_column(String(10), nullable=True)  # Q1, Q2, Q3, Q4, FY
     period_end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    
+
     # Income statement
     revenue: Mapped[float | None] = mapped_column(Float, nullable=True)
     gross_profit: Mapped[float | None] = mapped_column(Float, nullable=True)
     operating_income: Mapped[float | None] = mapped_column(Float, nullable=True)
     net_income: Mapped[float | None] = mapped_column(Float, nullable=True)
     eps: Mapped[float | None] = mapped_column(Float, nullable=True)
-    
+
     # Margins
     gross_margin: Mapped[float | None] = mapped_column(Float, nullable=True)
     operating_margin: Mapped[float | None] = mapped_column(Float, nullable=True)

@@ -1,8 +1,7 @@
-""" Free Yahoo Finance / Open market data provider using HTTP requests """
+"""Free Yahoo Finance / Open market data provider using HTTP requests"""
 
 import logging
 from datetime import date, datetime
-from typing import Any
 
 import httpx
 
@@ -76,9 +75,16 @@ class YahooFinanceProvider(BaseDataProvider):
         symbol = identifier.strip().upper()
         # Yahoo Finance v8 chart endpoint
         start_ts = int(datetime.combine(start_date, datetime.min.time()).timestamp()) if start_date else 0
-        end_ts = int(datetime.combine(end_date, datetime.max.time()).timestamp()) if end_date else int(datetime.now().timestamp())
-        
-        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?period1={start_ts}&period2={end_ts}&interval=1d"
+        end_ts = (
+            int(datetime.combine(end_date, datetime.max.time()).timestamp())
+            if end_date
+            else int(datetime.now().timestamp())
+        )
+
+        url = (
+            f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}"
+            f"?period1={start_ts}&period2={end_ts}&interval=1d"
+        )
         results: list[HistoricalPriceData] = []
 
         try:
@@ -111,7 +117,11 @@ class YahooFinanceProvider(BaseDataProvider):
                                         high=round(highs[i], 2) if i < len(highs) and highs[i] is not None else None,
                                         low=round(lows[i], 2) if i < len(lows) and lows[i] is not None else None,
                                         close=round(closes[i], 2),
-                                        adjusted_close=round(adjclose_list[i], 2) if i < len(adjclose_list) and adjclose_list[i] is not None else None,
+                                        adjusted_close=(
+                                            round(adjclose_list[i], 2)
+                                            if i < len(adjclose_list) and adjclose_list[i] is not None
+                                            else None
+                                        ),
                                         volume=int(volumes[i]) if i < len(volumes) and volumes[i] is not None else None,
                                         currency=currency,
                                         data_source=self.provider_name,
@@ -125,7 +135,8 @@ class YahooFinanceProvider(BaseDataProvider):
     def get_fundamental_data(self, identifier: str) -> list[FundamentalPeriodData]:
         # Free Yahoo quote summary endpoint
         symbol = identifier.strip().upper()
-        url = f"https://query2.finance.yahoo.com/v10/finance/quoteSummary/{symbol}?modules=financialData,defaultKeyStatistics,summaryDetail"
+        modules = "financialData,defaultKeyStatistics,summaryDetail"
+        url = f"https://query2.finance.yahoo.com/v10/finance/quoteSummary/{symbol}?modules={modules}"
         fundamentals: list[FundamentalPeriodData] = []
 
         try:
@@ -143,7 +154,6 @@ class YahooFinanceProvider(BaseDataProvider):
                         revenue = fin.get("totalRevenue", {}).get("raw")
                         gross_margin = fin.get("grossMargins", {}).get("raw")
                         operating_margin = fin.get("operatingMargins", {}).get("raw")
-                        ebitda = fin.get("ebitda", {}).get("raw")
                         net_income = fin.get("netIncomeToCommon", {}).get("raw")
                         eps = stats.get("trailingEps", {}).get("raw")
                         op_cash_flow = fin.get("operatingCashflow", {}).get("raw")
@@ -167,7 +177,9 @@ class YahooFinanceProvider(BaseDataProvider):
                                 period_end_date=date.today(),
                                 revenue=revenue,
                                 gross_profit=round(revenue * gross_margin, 2) if revenue and gross_margin else None,
-                                operating_income=round(revenue * operating_margin, 2) if revenue and operating_margin else None,
+                                operating_income=(
+                                    round(revenue * operating_margin, 2) if revenue and operating_margin else None
+                                ),
                                 net_income=net_income,
                                 eps=eps,
                                 gross_margin=gross_margin,

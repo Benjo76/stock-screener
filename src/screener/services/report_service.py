@@ -1,8 +1,7 @@
-""" Company Report and analysis management service """
+"""Company Report and analysis management service"""
 
 import io
-from datetime import date, datetime
-from typing import Any
+from datetime import date
 
 from fastapi import HTTPException
 from sqlalchemy import or_, select
@@ -10,7 +9,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from screener.analysis.report_analyzer import CompanyReportAnalyzer
 from screener.db.models.report import CompanyReport, ReportAnalysis
-from screener.db.models.stock import FundamentalData, Stock
+from screener.db.models.stock import FundamentalData
 from screener.services.stock_service import StockService
 
 
@@ -65,6 +64,7 @@ class ReportService:
         if filename_lower.endswith(".pdf"):
             try:
                 import pypdf
+
                 reader = pypdf.PdfReader(io.BytesIO(file_bytes))
                 text_parts = []
                 for idx, page in enumerate(reader.pages):
@@ -74,10 +74,10 @@ class ReportService:
                 extracted = "\n\n".join(text_parts).strip()
                 if extracted:
                     return extracted
-            except Exception as e:
+            except Exception:
                 # Fallback to plain string extraction if possible
                 pass
-        
+
         # Default decode utf-8 or latin-1
         try:
             return file_bytes.decode("utf-8")
@@ -155,9 +155,7 @@ class ReportService:
             raise HTTPException(status_code=404, detail="Company report not found")
 
         stock_fundamentals = list(
-            db.scalars(
-                select(FundamentalData).where(FundamentalData.stock_id == report.stock_id)
-            ).all()
+            db.scalars(select(FundamentalData).where(FundamentalData.stock_id == report.stock_id)).all()
         )
 
         analysis_data = CompanyReportAnalyzer.analyze_report(report, stock_fundamentals)

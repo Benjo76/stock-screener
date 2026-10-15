@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException, Query
-from sqlalchemy.orm import selectinload
 
 from api.core.dependencies import DbSession
 from api.core.responses import (

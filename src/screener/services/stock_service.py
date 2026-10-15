@@ -1,6 +1,5 @@
-""" Stock management and financial data synchronization service """
+"""Stock management and financial data synchronization service"""
 
-from datetime import date, datetime
 from typing import Any
 
 from fastapi import HTTPException
@@ -261,7 +260,7 @@ class StockService:
         stock = cls.get_stock_by_id(db, stock_id)
         if not stock:
             raise HTTPException(status_code=404, detail="Stock not found")
-        
+
         for key, value in kwargs.items():
             if hasattr(stock, key) and value is not None:
                 if key in ["isin", "wkn", "ticker"] and isinstance(value, str):
@@ -270,7 +269,7 @@ class StockService:
                     setattr(stock, key, value.strip().upper()[:3])
                 else:
                     setattr(stock, key, value)
-        
+
         try:
             db.commit()
             db.refresh(stock)
@@ -316,7 +315,7 @@ class StockService:
                 "provider": "local_database",
                 "message": "Stock found in local database",
             }
-        
+
         active_provider = provider or get_data_provider()
         profile = active_provider.lookup_stock(q)
         if profile and profile.name:
@@ -334,7 +333,7 @@ class StockService:
                 "provider": active_provider.provider_name,
                 "message": f"Stock resolved via {active_provider.provider_name}",
             }
-        
+
         return {
             "resolved": False,
             "isin": q if validate_isin(q) else None,

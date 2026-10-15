@@ -1,12 +1,11 @@
-""" Portfolio Aggregation and Research Analyzer """
+"""Portfolio Aggregation and Research Analyzer"""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
 from screener.analysis.engine import StockAnalysisEngine
-from screener.db.models.portfolio import Portfolio, PortfolioHolding
-from screener.db.models.stock import StockPrice
+from screener.db.models.portfolio import Portfolio
 
 
 @dataclass
@@ -98,19 +97,23 @@ class PortfolioAnalyzer:
             if stk and stk.prices:
                 sorted_prices = sorted(stk.prices, key=lambda p: p.date)
                 latest_price = sorted_prices[-1].close
-                data_sources.append({
-                    "stock": stk.ticker or stk.isin,
-                    "type": "price",
-                    "date": str(sorted_prices[-1].date),
-                    "source": sorted_prices[-1].data_source,
-                })
+                data_sources.append(
+                    {
+                        "stock": stk.ticker or stk.isin,
+                        "type": "price",
+                        "date": str(sorted_prices[-1].date),
+                        "source": sorted_prices[-1].data_source,
+                    }
+                )
 
             pos_curr_price = latest_price if latest_price is not None else avg_price
             pos_value = shares * pos_curr_price
             total_value += pos_value
 
             if latest_price is None and avg_price == 0.0:
-                data_gaps.append(f"Kein Einstandskurs oder Marktpreis für {stk.name or stk.isin or 'Wertpapier'} vorhanden.")
+                data_gaps.append(
+                    f"Kein Einstandskurs oder Marktpreis für {stk.name or stk.isin or 'Wertpapier'} vorhanden."
+                )
 
             # Individual stock evaluation
             stock_eval = None
@@ -121,7 +124,9 @@ class PortfolioAnalyzer:
                 weighted_scores_sum += stock_score * pos_value
                 weighted_weight_sum += pos_value
             else:
-                data_gaps.append(f"Keine Fundamentaldaten für Position {stk.name or stk.isin or stk.ticker if stk else 'Unbekannt'}.")
+                data_gaps.append(
+                    f"Keine Fundamentaldaten für Position {stk.name or stk.isin or stk.ticker if stk else 'Unbekannt'}."
+                )
 
             pos_gain_loss = pos_value - cost
             pos_return_pct = (pos_gain_loss / cost) if cost > 0 else 0.0
@@ -132,26 +137,28 @@ class PortfolioAnalyzer:
             curr = h.currency or (stk.currency if stk else currency) or currency
             currency_weights[curr] = currency_weights.get(curr, 0.0) + pos_value
 
-            breakdown.append({
-                "holding_id": h.id,
-                "stock_id": stk.id if stk else None,
-                "isin": stk.isin if stk else None,
-                "wkn": stk.wkn if stk else None,
-                "ticker": stk.ticker if stk else None,
-                "name": stk.name if stk else None,
-                "sector": sec,
-                "shares": shares,
-                "average_buy_price": avg_price,
-                "purchase_price": avg_price,
-                "current_price": pos_curr_price,
-                "latest_price": latest_price,
-                "total_cost": cost,
-                "current_value": pos_value,
-                "unrealized_gain_loss": pos_gain_loss,
-                "unrealized_return_pct": pos_return_pct,
-                "fundamental_score": stock_score,
-                "currency": curr,
-            })
+            breakdown.append(
+                {
+                    "holding_id": h.id,
+                    "stock_id": stk.id if stk else None,
+                    "isin": stk.isin if stk else None,
+                    "wkn": stk.wkn if stk else None,
+                    "ticker": stk.ticker if stk else None,
+                    "name": stk.name if stk else None,
+                    "sector": sec,
+                    "shares": shares,
+                    "average_buy_price": avg_price,
+                    "purchase_price": avg_price,
+                    "current_price": pos_curr_price,
+                    "latest_price": latest_price,
+                    "total_cost": cost,
+                    "current_value": pos_value,
+                    "unrealized_gain_loss": pos_gain_loss,
+                    "unrealized_return_pct": pos_return_pct,
+                    "fundamental_score": stock_score,
+                    "currency": curr,
+                }
+            )
 
         # Calculate percentages
         if total_value > 0:
@@ -171,9 +178,17 @@ class PortfolioAnalyzer:
         # Check concentration risk
         top_positions = sorted(breakdown, key=lambda x: x["current_value"], reverse=True)
         if top_positions and top_positions[0]["weight_pct"] > 35.0:
-            risks.append(f"Hohes Klumpenrisiko: '{top_positions[0]['name'] or top_positions[0]['ticker']}' macht {top_positions[0]['weight_pct']}% des Portfoliowerts aus.")
+            top_name = top_positions[0]["name"] or top_positions[0]["ticker"]
+            top_pct = top_positions[0]["weight_pct"]
+            risks.append(
+                f"Hohes Klumpenrisiko: '{top_name}' macht {top_pct}% des Portfoliowerts aus."
+            )
         elif top_positions and top_positions[0]["weight_pct"] > 20.0:
-            trends.append(f"Größte Position '{top_positions[0]['name'] or top_positions[0]['ticker']}' mit {top_positions[0]['weight_pct']}% Gewichtung.")
+            top_name = top_positions[0]["name"] or top_positions[0]["ticker"]
+            top_pct = top_positions[0]["weight_pct"]
+            trends.append(
+                f"Größte Position '{top_name}' mit {top_pct}% Gewichtung."
+            )
 
         if len(breakdown) < 5:
             risks.append(f"Geringe Diversifikation ({len(breakdown)} Positionen).")
@@ -193,15 +208,20 @@ class PortfolioAnalyzer:
             avg_fundamental_score = round(weighted_scores_sum / weighted_weight_sum, 1)
         else:
             avg_fundamental_score = 50.0
-            uncertainties.append("Durchschnittlicher Fundamental-Score konnte mangels Fundamentaldaten nur geschätzt werden.")
+            uncertainties.append(
+                "Durchschnittlicher Fundamental-Score konnte mangels Fundamentaldaten nur geschätzt werden."
+            )
 
         total_score = avg_fundamental_score
         if len(breakdown) >= 5:
             total_score = min(100.0, total_score + 5.0)
 
-        headline = f"Depot-Analyse '{portfolio.name}': {len(breakdown)} Positionen, Gesamtwert {total_value:,.2f} {currency}"
+        headline = (
+            f"Depot-Analyse '{portfolio.name}': {len(breakdown)} Positionen, Gesamtwert {total_value:,.2f} {currency}"
+        )
         summary = (
-            f"Depot '{portfolio.name}' mit Gesamtwert von {total_value:,.2f} {currency} (Einstand: {total_cost:,.2f} {currency}). "
+            f"Depot '{portfolio.name}' mit Gesamtwert von {total_value:,.2f} {currency} "
+            f"(Einstand: {total_cost:,.2f} {currency}). "
             f"Unrealisiertes Ergebnis: {unrealized_gl:+,.2f} {currency} "
             f"({unrealized_pct*100:+.2f}%). "
             f"Durchschnittlicher fundamentaler Qualitäts-Score: {avg_fundamental_score}/100."

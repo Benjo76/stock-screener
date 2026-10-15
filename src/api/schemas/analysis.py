@@ -6,7 +6,9 @@ from pydantic import BaseModel, ConfigDict, Field
 class AnalysisJobCreate(BaseModel):
     stock_id: int | None = Field(default=None, description="Stock ID for stock analysis")
     portfolio_id: int | None = Field(default=None, description="Portfolio ID for portfolio analysis")
-    execute_sync: bool = Field(default=True, description="Whether to execute synchronously or queue for background worker")
+    execute_sync: bool = Field(
+        default=True, description="Whether to execute synchronously or queue for background worker"
+    )
 
 
 class AnalysisJobRead(BaseModel):

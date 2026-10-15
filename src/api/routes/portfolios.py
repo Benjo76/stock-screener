@@ -1,7 +1,4 @@
-from typing import Literal
-
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, HTTPException
 
 from api.core.dependencies import DbSession
 from api.core.responses import (
@@ -102,7 +99,9 @@ def delete_portfolio(portfolio_id: int, db: DbSession):
     "/{portfolio_id}/import/preview",
     response_model=CsvImportPreviewResponse,
     summary="Preview and validate CSV import",
-    description="Parses CSV text or file, validates columns and rows, and reports errors without modifying the database.",
+    description=(
+        "Parses CSV text or file, validates columns and rows, and reports errors without modifying the database."
+    ),
     responses={
         200: {"description": "CSV Preview and Validation Results"},
         404: {"description": "Portfolio not found"},
@@ -127,40 +126,44 @@ def preview_csv_import(
     preview_items = []
     if result.import_type == "holdings":
         for r in result.holdings[:25]:
-            preview_items.append({
-                "row_number": r.row_number,
-                "isin": r.isin,
-                "wkn": r.wkn,
-                "ticker": r.ticker,
-                "name": r.name,
-                "shares": r.shares,
-                "average_buy_price": r.average_buy_price,
-                "purchase_price": r.purchase_price or r.average_buy_price,
-                "current_price": r.current_price,
-                "price": r.purchase_price or r.average_buy_price,
-                "total_cost": r.total_cost,
-                "currency": r.currency,
-                "is_valid": r.is_valid,
-                "errors": r.errors,
-            })
+            preview_items.append(
+                {
+                    "row_number": r.row_number,
+                    "isin": r.isin,
+                    "wkn": r.wkn,
+                    "ticker": r.ticker,
+                    "name": r.name,
+                    "shares": r.shares,
+                    "average_buy_price": r.average_buy_price,
+                    "purchase_price": r.purchase_price or r.average_buy_price,
+                    "current_price": r.current_price,
+                    "price": r.purchase_price or r.average_buy_price,
+                    "total_cost": r.total_cost,
+                    "currency": r.currency,
+                    "is_valid": r.is_valid,
+                    "errors": r.errors,
+                }
+            )
     elif result.import_type == "transactions":
         for r in result.transactions[:25]:
-            preview_items.append({
-                "row_number": r.row_number,
-                "isin": r.isin,
-                "wkn": r.wkn,
-                "ticker": r.ticker,
-                "name": r.name,
-                "transaction_type": r.transaction_type,
-                "transaction_date": r.transaction_date.isoformat() if r.transaction_date else None,
-                "shares": r.shares,
-                "price_per_share": r.price_per_share,
-                "total_amount": r.total_amount,
-                "fees": r.fees,
-                "currency": r.currency,
-                "is_valid": r.is_valid,
-                "errors": r.errors,
-            })
+            preview_items.append(
+                {
+                    "row_number": r.row_number,
+                    "isin": r.isin,
+                    "wkn": r.wkn,
+                    "ticker": r.ticker,
+                    "name": r.name,
+                    "transaction_type": r.transaction_type,
+                    "transaction_date": r.transaction_date.isoformat() if r.transaction_date else None,
+                    "shares": r.shares,
+                    "price_per_share": r.price_per_share,
+                    "total_amount": r.total_amount,
+                    "fees": r.fees,
+                    "currency": r.currency,
+                    "is_valid": r.is_valid,
+                    "errors": r.errors,
+                }
+            )
 
     return CsvImportPreviewResponse(
         import_type=result.import_type,
@@ -246,7 +249,11 @@ def get_portfolio_summary(portfolio_id: int, db: DbSession):
     summary="Add or update portfolio holding",
 )
 def add_holding(portfolio_id: int, payload: PortfolioHoldingCreate, db: DbSession):
-    avg_price = payload.average_buy_price if payload.average_buy_price is not None else (payload.purchase_price if payload.purchase_price is not None else payload.price)
+    avg_price = (
+        payload.average_buy_price
+        if payload.average_buy_price is not None
+        else (payload.purchase_price if payload.purchase_price is not None else payload.price)
+    )
     return PortfolioService.add_or_update_holding(
         db=db,
         portfolio_id=portfolio_id,

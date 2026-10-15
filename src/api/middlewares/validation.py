@@ -19,9 +19,7 @@ class ValidationMiddleware(BaseHTTPMiddleware):
     # Default 10MB limit for uploads
     MAX_CONTENT_LENGTH = int(os.getenv("MAX_UPLOAD_SIZE_BYTES", 10 * 1024 * 1024))
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         if request.method in self.METHODS_WITH_BODY:
             content_type = request.headers.get("content-type", "")
             content_length_header = request.headers.get("content-length")

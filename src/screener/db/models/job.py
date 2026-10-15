@@ -25,10 +25,14 @@ class AnalysisJob(Base):
     __tablename__ = "analysis_jobs"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    job_type: Mapped[str] = mapped_column(String(50), nullable=False)  # STOCK_ANALYSIS, PORTFOLIO_ANALYSIS, REPORT_ANALYSIS, DATA_SYNC
+    job_type: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )  # STOCK_ANALYSIS, PORTFOLIO_ANALYSIS, REPORT_ANALYSIS, DATA_SYNC
     stock_id: Mapped[int | None] = mapped_column(ForeignKey("stocks.id", ondelete="CASCADE"), nullable=True)
     portfolio_id: Mapped[int | None] = mapped_column(ForeignKey("portfolios.id", ondelete="CASCADE"), nullable=True)
-    status: Mapped[str] = mapped_column(String(20), default="PENDING", nullable=False)  # PENDING, RUNNING, COMPLETED, FAILED
+    status: Mapped[str] = mapped_column(
+        String(20), default="PENDING", nullable=False
+    )  # PENDING, RUNNING, COMPLETED, FAILED
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     params: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -57,7 +61,9 @@ class AnalysisResult(Base):
     stock_id: Mapped[int | None] = mapped_column(ForeignKey("stocks.id", ondelete="CASCADE"), nullable=True)
     portfolio_id: Mapped[int | None] = mapped_column(ForeignKey("portfolios.id", ondelete="CASCADE"), nullable=True)
     version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
-    analysis_type: Mapped[str] = mapped_column(String(50), nullable=False)  # FUNDAMENTAL, PORTFOLIO_OVERVIEW, COMPREHENSIVE
+    analysis_type: Mapped[str] = mapped_column(
+        String(50), nullable=False
+    )  # FUNDAMENTAL, PORTFOLIO_OVERVIEW, COMPREHENSIVE
     headline: Mapped[str | None] = mapped_column(String(255), nullable=True)
     score: Mapped[float | None] = mapped_column(Float, nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)

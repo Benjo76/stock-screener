@@ -23,7 +23,9 @@ class ReportAnalysisRead(BaseModel):
 
 class CompanyReportCreate(BaseModel):
     stock_id: int
-    report_type: str = Field(description="Report type (e.g. ANNUAL_REPORT, QUARTERLY_REPORT, 10-K, 10-Q)", examples=["ANNUAL_REPORT"])
+    report_type: str = Field(
+        description="Report type (e.g. ANNUAL_REPORT, QUARTERLY_REPORT, 10-K, 10-Q)", examples=["ANNUAL_REPORT"]
+    )
     fiscal_year: int | None = Field(default=None, examples=[2024])
     fiscal_period: str | None = Field(default=None, examples=["FY", "Q3"])
     report_date: date | None = None

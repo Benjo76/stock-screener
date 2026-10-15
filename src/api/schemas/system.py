@@ -1,6 +1,4 @@
-from datetime import datetime
-from typing import Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from api.schemas.analysis import AnalysisJobRead, AnalysisResultRead
 from api.schemas.report import CompanyReportRead

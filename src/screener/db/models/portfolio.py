@@ -53,9 +53,7 @@ class Portfolio(Base):
 
 class PortfolioHolding(Base):
     __tablename__ = "portfolio_holdings"
-    __table_args__ = (
-        UniqueConstraint("portfolio_id", "stock_id", name="uq_portfolio_stock_holding"),
-    )
+    __table_args__ = (UniqueConstraint("portfolio_id", "stock_id", name="uq_portfolio_stock_holding"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     portfolio_id: Mapped[int] = mapped_column(ForeignKey("portfolios.id", ondelete="CASCADE"), nullable=False)
@@ -93,9 +91,7 @@ class PortfolioHolding(Base):
 
 class PortfolioTransaction(Base):
     __tablename__ = "portfolio_transactions"
-    __table_args__ = (
-        Index("ix_portfolio_transactions_date", "transaction_date"),
-    )
+    __table_args__ = (Index("ix_portfolio_transactions_date", "transaction_date"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     portfolio_id: Mapped[int] = mapped_column(ForeignKey("portfolios.id", ondelete="CASCADE"), nullable=False)

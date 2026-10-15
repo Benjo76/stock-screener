@@ -29,9 +29,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         self.api_key = api_key or os.getenv("API_KEY", "dev-secret-key")
         self.exempt_paths = set(exempt_paths) if exempt_paths is not None else self.DEFAULT_EXEMPT_PATHS
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         path = request.url.path
 
         # Allow exempt paths and CORS preflight OPTIONS requests

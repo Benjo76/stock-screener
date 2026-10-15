@@ -1,12 +1,7 @@
-""" Tests for extended API endpoints: dashboard, system, jobs, reports upload, stock & portfolio CRUD """
+"""Tests for extended API endpoints: dashboard, system, jobs, reports upload, stock & portfolio CRUD"""
 
-import os
 import pytest
 from fastapi.testclient import TestClient
-
-os.environ["APP_ENV"] = "test"
-os.environ["API_KEY"] = "test-api-key"
-os.environ["DATA_PROVIDER"] = "mock"
 
 from api.main import app
 from screener.db.base import Base

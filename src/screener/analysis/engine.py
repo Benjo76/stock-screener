@@ -1,6 +1,6 @@
-""" Fundamental Stock Analysis Engine """
+"""Fundamental Stock Analysis Engine"""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
@@ -60,10 +60,11 @@ class StockAnalysisEngine:
         now = datetime.now()
 
         if not fundamentals:
+            name_ident = stock.name or stock.isin or stock.ticker
             return StockAnalysisEvaluation(
                 score=0.0,
                 headline="Keine Fundamentaldaten verfügbar",
-                summary=f"Für {stock.name or stock.isin or stock.ticker} liegen keine historischen Fundamentaldaten vor.",
+                summary=f"Für {name_ident} liegen keine historischen Fundamentaldaten vor.",
                 growth_score=0.0,
                 profitability_score=0.0,
                 stability_score=0.0,
@@ -81,23 +82,31 @@ class StockAnalysisEngine:
         # Sort fundamentals by year/period ascending
         sorted_fundamentals = sorted(
             fundamentals,
-            key=lambda f: (f.fiscal_year or 0, f.fiscal_period or "", f.period_end_date or f.created_at.date() if f.created_at else now.date()),
+            key=lambda f: (
+                f.fiscal_year or 0,
+                f.fiscal_period or "",
+                f.period_end_date or f.created_at.date() if f.created_at else now.date(),
+            ),
         )
         latest = sorted_fundamentals[-1]
         previous = sorted_fundamentals[-2] if len(sorted_fundamentals) > 1 else None
 
         # Collect data sources info
         for f in sorted_fundamentals:
-            data_sources.append({
-                "type": "fundamental",
-                "source": f.data_source,
-                "period": f"{f.fiscal_year or ''} {f.fiscal_period or f.period_type}",
-                "recorded_at": f.created_at.isoformat() if f.created_at else now.isoformat(),
-            })
+            data_sources.append(
+                {
+                    "type": "fundamental",
+                    "source": f.data_source,
+                    "period": f"{f.fiscal_year or ''} {f.fiscal_period or f.period_type}",
+                    "recorded_at": f.created_at.isoformat() if f.created_at else now.isoformat(),
+                }
+            )
 
         # Industry profile adjustments
         sector = stock.sector or "Technology"
-        industry_cfg = cls.INDUSTRY_PROFILES.get(sector, {"max_debt_to_equity": 2.0, "min_operating_margin": 0.10, "typical_pe": 20.0})
+        industry_cfg = cls.INDUSTRY_PROFILES.get(
+            sector, {"max_debt_to_equity": 2.0, "min_operating_margin": 0.10, "typical_pe": 20.0}
+        )
 
         # 1. Growth Analysis
         growth_points = 0.0
@@ -187,7 +196,9 @@ class StockAnalysisEngine:
             if latest.free_cash_flow > 0:
                 prof_points += 8.0
                 trends.append("Positiver Free Cashflow unterstützt finanzielle Flexibilität.")
-                opportunities.append("Starker Free Cashflow ermöglicht Dividenden, Aktienrückkäufe oder Reinvestitionen.")
+                opportunities.append(
+                    "Starker Free Cashflow ermöglicht Dividenden, Aktienrückkäufe oder Reinvestitionen."
+                )
             else:
                 risks.append("Negativer Free Cashflow (Cash-Burn).")
         elif latest.operating_cash_flow is not None:
@@ -209,7 +220,10 @@ class StockAnalysisEngine:
             elif latest.debt_to_equity <= industry_cfg["max_debt_to_equity"]:
                 stab_points += 6.0
             else:
-                risks.append(f"Erhöhte Verschuldung (Debt/Equity: {latest.debt_to_equity:.2f} > Branchenwert {industry_cfg['max_debt_to_equity']}).")
+                max_de = industry_cfg["max_debt_to_equity"]
+                risks.append(
+                    f"Erhöhte Verschuldung (Debt/Equity: {latest.debt_to_equity:.2f} > Branchenwert {max_de})."
+                )
         elif latest.total_debt is not None and latest.cash_and_equivalents is not None:
             net_debt = latest.total_debt - latest.cash_and_equivalents
             if net_debt <= 0:
@@ -244,13 +258,18 @@ class StockAnalysisEngine:
             if latest.pe_ratio > 0:
                 if latest.pe_ratio <= industry_cfg["typical_pe"] * 0.8:
                     val_points += 12.0
-                    opportunities.append(f"Günstige KGV-Bewertung ({latest.pe_ratio:.1f} vs Branchen-Richtwert {industry_cfg['typical_pe']}).")
+                    typ_pe = industry_cfg["typical_pe"]
+                    opportunities.append(
+                        f"Günstige KGV-Bewertung ({latest.pe_ratio:.1f} vs Branchen-Richtwert {typ_pe})."
+                    )
                 elif latest.pe_ratio <= industry_cfg["typical_pe"] * 1.3:
                     val_points += 8.0
                     trends.append(f"Faire KGV-Bewertung ({latest.pe_ratio:.1f}).")
                 else:
                     val_points += 3.0
-                    risks.append(f"Ambitionierte KGV-Bewertung ({latest.pe_ratio:.1f}). Hohe Wachstumserwartungen eingepreist.")
+                    risks.append(
+                        f"Ambitionierte KGV-Bewertung ({latest.pe_ratio:.1f}). Hohe Wachstumserwartungen eingepreist."
+                    )
             else:
                 risks.append("Negatives KGV aufgrund von Verlusten.")
         else:
@@ -286,7 +305,12 @@ class StockAnalysisEngine:
 
         summary_parts = [
             f"Analyse für {stock.name or stock.ticker or stock.isin} (Sektor: {sector}).",
-            f"Wachstum: {growth_points:.1f}/{growth_max}, Rentabilität: {prof_points:.1f}/{prof_max}, Stabilität: {stab_points:.1f}/{stab_max}, Bewertung: {val_points:.1f}/{val_max}.",
+            (
+                f"Wachstum: {growth_points:.1f}/{growth_max}, "
+                f"Rentabilität: {prof_points:.1f}/{prof_max}, "
+                f"Stabilität: {stab_points:.1f}/{stab_max}, "
+                f"Bewertung: {val_points:.1f}/{val_max}."
+            ),
         ]
         if risks:
             summary_parts.append(f"Hauptrisiken: {'; '.join(risks[:2])}")

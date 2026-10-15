@@ -1,4 +1,4 @@
-""" Comprehensive tests for Stock Agent features:
+"""Comprehensive tests for Stock Agent features:
 - Securities and portfolio management
 - CSV validation, preview, and execution (holdings & transactions)
 - Duplicates and error handling
@@ -10,30 +10,20 @@
 - Security, Middleware, Upload size limit (413) and Content-Type validation
 """
 
-from datetime import date, datetime
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
 
 from api.main import app
 from screener.analysis.engine import StockAnalysisEngine
-from screener.analysis.portfolio_analyzer import PortfolioAnalyzer
-from screener.analysis.report_analyzer import CompanyReportAnalyzer
 from screener.db.base import Base
-from screener.db.models.job import AnalysisJob, AnalysisResult
 from screener.db.models.portfolio import (
-    Portfolio,
     PortfolioHolding,
-    PortfolioTransaction,
 )
-from screener.db.models.report import CompanyReport, ReportAnalysis
-from screener.db.models.stock import FundamentalData, Stock, StockPrice
+from screener.db.models.stock import FundamentalData, Stock
 from screener.db.session import SessionLocal, engine
-from screener.importers.csv_importer import CsvPortfolioImporter
 from screener.providers.mock_provider import MockDataProvider
 from screener.services.analysis_service import AnalysisService
 from screener.services.portfolio_service import PortfolioService
-from screener.services.report_service import ReportService
 from screener.services.stock_service import StockService
 from screener.worker import ScreenerWorker
 
@@ -56,7 +46,7 @@ def client():
 def test_stock_service_lookup_and_resolution():
     with SessionLocal() as db:
         mock_provider = MockDataProvider()
-        
+
         # Test creating by ISIN with provider resolution
         stock = StockService.resolve_and_create_stock(
             db=db,
@@ -239,10 +229,10 @@ def test_distinction_between_missing_data_and_negative_metrics():
             fiscal_period="FY",
             revenue=50000.0,
             net_income=-10000.0,  # Actually negative profit
-            gross_margin=None,     # Missing metric
+            gross_margin=None,  # Missing metric
             operating_margin=-0.20,
-            pe_ratio=-15.0,        # Negative PE
-            debt_to_equity=3.5,    # High debt
+            pe_ratio=-15.0,  # Negative PE
+            debt_to_equity=3.5,  # High debt
             data_source="manual",
         )
     ]
@@ -254,7 +244,9 @@ def test_distinction_between_missing_data_and_negative_metrics():
 
 def test_report_analysis_and_unverified_flag(client):
     # 1. Create stock
-    stk_resp = client.post("/stocks", json={"isin": "US0378331005", "ticker": "AAPL", "name": "Apple Inc."}, headers=AUTH_HEADERS)
+    stk_resp = client.post(
+        "/stocks", json={"isin": "US0378331005", "ticker": "AAPL", "name": "Apple Inc."}, headers=AUTH_HEADERS
+    )
     stock_id = stk_resp.json()["id"]
 
     # 2. Post report text
@@ -276,7 +268,7 @@ def test_report_analysis_and_unverified_flag(client):
     assert r_resp.status_code == 201
     report_data = r_resp.json()
     assert len(report_data["analyses"]) == 1
-    
+
     analysis = report_data["analyses"][0]
     # Check that extracted figures are flagged as unverified by default
     assert analysis["is_verified"] is False
@@ -317,7 +309,7 @@ def test_portfolio_analysis_and_versioned_results(client):
     # Run analysis 1
     res1 = client.post(f"/analyses/portfolios/{portfolio_id}", headers=AUTH_HEADERS)
     assert res1.status_code == 202
-    job1_id = res1.json()["id"]
+    assert res1.json()["id"] > 0
 
     # Run analysis 2 (creates version 2)
     res2 = client.post(f"/analyses/portfolios/{portfolio_id}", headers=AUTH_HEADERS)
@@ -339,7 +331,11 @@ def test_upload_size_limit_middleware(client):
     resp = client.post(
         "/portfolios",
         content=large_payload,
-        headers={"X-API-KEY": "test-api-key", "Content-Type": "application/json", "Content-Length": str(len(large_payload))},
+        headers={
+            "X-API-KEY": "test-api-key",
+            "Content-Type": "application/json",
+            "Content-Length": str(len(large_payload)),
+        },
     )
     assert resp.status_code == 413
     assert "Payload Too Large" in resp.json()["detail"]
@@ -406,7 +402,9 @@ def test_csv_importer_purchase_price_and_current_price(client):
     assert port_resp.status_code == 200
     port_data = port_resp.json()
     assert len(port_data["holdings"]) == 2
-    apple_h = next(h for h in port_data["holdings"] if h["stock"]["ticker"] == "AAPL" or h["stock"]["isin"] == "US0378331005")
+    apple_h = next(
+        h for h in port_data["holdings"] if h["stock"]["ticker"] == "AAPL" or h["stock"]["isin"] == "US0378331005"
+    )
     assert apple_h["purchase_price"] == 150.00
     assert apple_h["current_price"] == 180.50
 

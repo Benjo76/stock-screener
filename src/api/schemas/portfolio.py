@@ -7,7 +7,9 @@ from api.schemas.stock import StockRead
 
 class PortfolioCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255, description="Portfolio name", examples=["Mein Hauptdepot"])
-    description: str | None = Field(default=None, description="Optional description", examples=["Langfristiges Buy & Hold Depot"])
+    description: str | None = Field(
+        default=None, description="Optional description", examples=["Langfristiges Buy & Hold Depot"]
+    )
     currency: str = Field(default="EUR", min_length=3, max_length=3, description="Base currency", examples=["EUR"])
 
 
@@ -119,7 +121,9 @@ class PortfolioHoldingCreate(BaseModel):
     name: str | None = None
     shares: float = Field(gt=0, description="Number of shares")
     average_buy_price: float | None = Field(default=None, ge=0, description="Average cost basis per share")
-    purchase_price: float | None = Field(default=None, ge=0, description="Purchase price per share (alias for average_buy_price)")
+    purchase_price: float | None = Field(
+        default=None, ge=0, description="Purchase price per share (alias for average_buy_price)"
+    )
     current_price: float | None = Field(default=None, ge=0, description="Current market price per share")
     price: float | None = Field(default=None, ge=0, description="Price per share (fallback)")
     currency: str = Field(default="EUR", min_length=3, max_length=3)

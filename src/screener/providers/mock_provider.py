@@ -1,7 +1,6 @@
-""" Mock / Offline Data Provider for deterministic local operations and testing """
+"""Mock / Offline Data Provider for deterministic local operations and testing"""
 
-from datetime import date, datetime, timedelta
-from typing import Any
+from datetime import date, timedelta
 
 from screener.providers.base import (
     BaseDataProvider,
@@ -27,7 +26,10 @@ class MockDataProvider(BaseDataProvider):
                 sector="Technology",
                 industry="Consumer Electronics",
                 country="USA",
-                description="Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories.",
+                description=(
+                    "Apple Inc. designs, manufactures, and markets smartphones, "
+                    "personal computers, tablets, wearables, and accessories."
+                ),
             ),
             "865985": StockProfile(
                 symbol="AAPL",
@@ -95,7 +97,7 @@ class MockDataProvider(BaseDataProvider):
         key = identifier.strip().upper()
         if key in self._stocks:
             return self._stocks[key]
-        
+
         # Generic fallback for test ISINs
         if len(key) == 12 and key[:2].isalpha():
             return StockProfile(
@@ -115,11 +117,11 @@ class MockDataProvider(BaseDataProvider):
     ) -> list[HistoricalPriceData]:
         end = end_date or date.today()
         start = start_date or (end - timedelta(days=365))
-        
+
         prices: list[HistoricalPriceData] = []
         cur_date = start
         base_price = 150.0
-        
+
         while cur_date <= end:
             # Skip weekends
             if cur_date.weekday() < 5:
@@ -217,12 +219,13 @@ class MockDataProvider(BaseDataProvider):
                 report_date=date(2024, 11, 1),
                 title="Annual Report 2024 (Form 10-K)",
                 content_text=(
-                    "Management Discussion and Analysis: During fiscal year 2024, revenue grew by 2% to $391.0 billion. "
-                    "Gross margin expanded to 46.2%, driven by strong growth in Services and high-margin products. "
-                    "Operating cash flow reached $118.3 billion, enabling increased share repurchases and dividends. "
-                    "Key risks: Supply chain concentration in Asia, geopolitical tensions, regulatory scrutiny regarding app store fees, "
-                    "and foreign exchange volatility. "
-                    "Opportunities: Expansion of cloud services, generative AI features integrated into hardware ecosystem, and enterprise adoption."
+                    "Management Discussion and Analysis: During fiscal year 2024, revenue grew by 2% to $391.0 "
+                    "billion. Gross margin expanded to 46.2%, driven by strong growth in Services and high-margin "
+                    "products. Operating cash flow reached $118.3 billion, enabling increased share repurchases and "
+                    "dividends. Key risks: Supply chain concentration in Asia, geopolitical tensions, regulatory "
+                    "scrutiny regarding app store fees, and foreign exchange volatility. "
+                    "Opportunities: Expansion of cloud services, generative AI features integrated into hardware "
+                    "ecosystem, and enterprise adoption."
                 ),
                 source_url="https://example.com/reports/2024-10k",
                 data_source=self.provider_name,

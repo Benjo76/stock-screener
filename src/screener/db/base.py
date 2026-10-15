@@ -1,5 +1,4 @@
-""" Database models """
-
+"""Database models"""
 
 from sqlalchemy.orm import DeclarativeBase
 

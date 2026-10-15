@@ -1,12 +1,11 @@
-""" Configuration """
-
+"""Configuration"""
 
 import os
 import sys
 
 
 def get_database_url() -> str:
-    """ Get database url """
+    """Get database url"""
     url = os.getenv("DATABASE_URL")
     if url:
         return url
@@ -20,11 +19,7 @@ def get_database_url() -> str:
     if user and password and db:
         return f"postgresql+psycopg://{user}:{password}@{host}:{port}/{db}"
 
-    if (
-        os.getenv("APP_ENV") == "test"
-        or "pytest" in sys.modules
-        or os.getenv("PYTEST_CURRENT_TEST")
-    ):
+    if os.getenv("APP_ENV") == "test" or "pytest" in sys.modules or os.getenv("PYTEST_CURRENT_TEST"):
         return "sqlite:///:memory:"
 
     raise RuntimeError("DATABASE_URL is not configured")

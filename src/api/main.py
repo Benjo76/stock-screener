@@ -1,4 +1,4 @@
-""" Stock Screener and Portfolio Research Agent API """
+"""Stock Screener and Portfolio Research Agent API"""
 
 import os
 from contextlib import asynccontextmanager
@@ -34,7 +34,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Stock Screener API",
     version="0.1.0",
-    description="Stock Screener REST API with authentication, portfolio management, CSV import, and fundamental analysis.",
+    description=(
+        "Stock Screener REST API with authentication, portfolio management, "
+        "CSV import, and fundamental analysis."
+    ),
     lifespan=lifespan,
 )
 

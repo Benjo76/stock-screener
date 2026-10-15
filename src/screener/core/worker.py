@@ -1,10 +1,8 @@
-""" Background screener worker for processing analysis jobs """
+"""Background screener worker for processing analysis jobs"""
 
 import logging
 import signal
-import sys
 import time
-from typing import Any
 
 from sqlalchemy import select
 
@@ -29,10 +27,7 @@ class ScreenerWorker:
             # Pick pending jobs
             pending_jobs = list(
                 db.scalars(
-                    select(AnalysisJob)
-                    .where(AnalysisJob.status == "PENDING")
-                    .order_by(AnalysisJob.id.asc())
-                    .limit(5)
+                    select(AnalysisJob).where(AnalysisJob.status == "PENDING").order_by(AnalysisJob.id.asc()).limit(5)
                 ).all()
             )
 
