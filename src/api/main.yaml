@@ -1,7 +1,8 @@
 openapi: 3.1.0
 info:
   title: Stock Screener API
-  description: Stock Screener REST API with authentication and request validation.
+  description: Stock Screener REST API with authentication, portfolio management,
+    CSV import, and fundamental analysis.
   version: 0.1.0
 paths:
   /healthcheck:
@@ -40,19 +41,47 @@ paths:
     get:
       tags:
       - Stocks
-      summary: List stocks
-      description: Retrieve a list of all stored stocks, ordered by their internal
-        ID.
+      summary: List and search stocks
+      description: Retrieve a list of stored stocks, optionally filtered by ISIN,
+        WKN, Ticker, or Name.
       operationId: list_stocks_stocks_get
+      parameters:
+      - name: query
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Search term for ISIN, WKN, Ticker or Name
+          title: Query
+        description: Search term for ISIN, WKN, Ticker or Name
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 500
+          minimum: 1
+          default: 100
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
       responses:
         '200':
           description: List of stocks
           content:
             application/json:
               schema:
+                type: array
                 items:
                   $ref: '#/components/schemas/StockRead'
-                type: array
                 title: Response List Stocks Stocks Get
         '401':
           description: Unauthorized - Missing or invalid X-API-KEY header
@@ -60,19 +89,26 @@ paths:
             application/json:
               example:
                 detail: Invalid or missing X-API-KEY header.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
     post:
       tags:
       - Stocks
       summary: Create or retrieve a stock
-      description: Registers a new stock or returns an existing one if the ISIN is
-        already present. Requires at least an ISIN (WKN-only lookup is not yet supported).
+      description: Registers a new stock or returns an existing one if the ISIN, WKN,
+        or Ticker is already present. Attempts to automatically enrich stock metadata
+        via the active data provider.
       operationId: create_stock_stocks_post
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/StockCreate'
-        required: true
       responses:
         '201':
           description: Stock created or retrieved successfully
@@ -101,8 +137,1536 @@ paths:
             application/json:
               example:
                 detail: A stock with this ISIN or WKN already exists.
+  /stocks/{stock_id}:
+    get:
+      tags:
+      - Stocks
+      summary: Get stock details
+      description: Retrieve full stock information by its database ID.
+      operationId: get_stock_stocks__stock_id__get
+      parameters:
+      - name: stock_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Stock Id
+      responses:
+        '200':
+          description: Stock details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockRead'
+        '404':
+          description: Stock not found
+        '401':
+          description: Unauthorized - Missing or invalid X-API-KEY header
+          content:
+            application/json:
+              example:
+                detail: Invalid or missing X-API-KEY header.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /stocks/{stock_id}/sync:
+    post:
+      tags:
+      - Stocks
+      summary: Sync market and fundamental data
+      description: Fetches recent historical prices and fundamental metrics from the
+        active provider.
+      operationId: sync_stock_data_stocks__stock_id__sync_post
+      parameters:
+      - name: stock_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Stock Id
+      responses:
+        '200':
+          description: Data synchronized successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StockRead'
+        '404':
+          description: Stock not found
+        '401':
+          description: Unauthorized - Missing or invalid X-API-KEY header
+          content:
+            application/json:
+              example:
+                detail: Invalid or missing X-API-KEY header.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /stocks/{stock_id}/prices:
+    get:
+      tags:
+      - Stocks
+      summary: Get stock price history
+      operationId: get_stock_prices_stocks__stock_id__prices_get
+      parameters:
+      - name: stock_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Stock Id
+      responses:
+        '200':
+          description: List of historical prices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StockPriceRead'
+                title: Response Get Stock Prices Stocks  Stock Id  Prices Get
+        '404':
+          description: Stock not found
+        '401':
+          description: Unauthorized - Missing or invalid X-API-KEY header
+          content:
+            application/json:
+              example:
+                detail: Invalid or missing X-API-KEY header.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /stocks/{stock_id}/fundamentals:
+    get:
+      tags:
+      - Stocks
+      summary: Get fundamental data periods
+      operationId: get_stock_fundamentals_stocks__stock_id__fundamentals_get
+      parameters:
+      - name: stock_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Stock Id
+      responses:
+        '200':
+          description: List of fundamental data periods
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FundamentalDataRead'
+                title: Response Get Stock Fundamentals Stocks  Stock Id  Fundamentals
+                  Get
+        '404':
+          description: Stock not found
+        '401':
+          description: Unauthorized - Missing or invalid X-API-KEY header
+          content:
+            application/json:
+              example:
+                detail: Invalid or missing X-API-KEY header.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /stocks/{stock_id}/reports:
+    get:
+      tags:
+      - Stocks
+      summary: Get company reports
+      operationId: get_stock_reports_stocks__stock_id__reports_get
+      parameters:
+      - name: stock_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Stock Id
+      responses:
+        '200':
+          description: List of company reports and analyses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CompanyReportRead'
+                title: Response Get Stock Reports Stocks  Stock Id  Reports Get
+        '404':
+          description: Stock not found
+        '401':
+          description: Unauthorized - Missing or invalid X-API-KEY header
+          content:
+            application/json:
+              example:
+                detail: Invalid or missing X-API-KEY header.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /stocks/{stock_id}/analyses:
+    get:
+      tags:
+      - Stocks
+      summary: Get historical analyses for stock
+      operationId: get_stock_analyses_stocks__stock_id__analyses_get
+      parameters:
+      - name: stock_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Stock Id
+      responses:
+        '200':
+          description: List of versioned analysis results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AnalysisResultRead'
+                title: Response Get Stock Analyses Stocks  Stock Id  Analyses Get
+        '404':
+          description: Stock not found
+        '401':
+          description: Unauthorized - Missing or invalid X-API-KEY header
+          content:
+            application/json:
+              example:
+                detail: Invalid or missing X-API-KEY header.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /portfolios:
+    get:
+      tags:
+      - Portfolios
+      summary: List all portfolios
+      operationId: list_portfolios_portfolios_get
+      responses:
+        '200':
+          description: List of portfolios
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/PortfolioRead'
+                type: array
+                title: Response List Portfolios Portfolios Get
+        '401':
+          description: Unauthorized - Missing or invalid X-API-KEY header
+          content:
+            application/json:
+              example:
+                detail: Invalid or missing X-API-KEY header.
+    post:
+      tags:
+      - Portfolios
+      summary: Create a new portfolio
+      operationId: create_portfolio_portfolios_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PortfolioCreate'
+        required: true
+      responses:
+        '201':
+          description: Portfolio created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioRead'
+        '401':
+          description: Unauthorized - Missing or invalid X-API-KEY header
+          content:
+            application/json:
+              example:
+                detail: Invalid or missing X-API-KEY header.
+        '422':
+          description: Validation error (e.g. missing required fields or invalid length)
+  /portfolios/{portfolio_id}:
+    get:
+      tags:
+      - Portfolios
+      summary: Get portfolio details
+      description: Retrieve full portfolio information including current holdings
+        and transactions.
+      operationId: get_portfolio_portfolios__portfolio_id__get
+      parameters:
+      - name: portfolio_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Portfolio Id
+      responses:
+        '200':
+          description: Portfolio details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioRead'
+        '404':
+          description: Portfolio not found
+        '401':
+          description: Unauthorized - Missing or invalid X-API-KEY header
+          content:
+            application/json:
+              example:
+                detail: Invalid or missing X-API-KEY header.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - Portfolios
+      summary: Delete portfolio
+      operationId: delete_portfolio_portfolios__portfolio_id__delete
+      parameters:
+      - name: portfolio_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Portfolio Id
+      responses:
+        '200':
+          description: Portfolio deleted
+          content:
+            application/json:
+              schema: {}
+        '404':
+          description: Portfolio not found
+        '401':
+          description: Unauthorized - Missing or invalid X-API-KEY header
+          content:
+            application/json:
+              example:
+                detail: Invalid or missing X-API-KEY header.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /portfolios/{portfolio_id}/import/preview:
+    post:
+      tags:
+      - Portfolios
+      summary: Preview and validate CSV import
+      description: Parses CSV text or file, validates columns and rows, and reports
+        errors without modifying the database.
+      operationId: preview_csv_import_portfolios__portfolio_id__import_preview_post
+      parameters:
+      - name: portfolio_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Portfolio Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CsvImportRequest'
+      responses:
+        '200':
+          description: CSV Preview and Validation Results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsvImportPreviewResponse'
+        '404':
+          description: Portfolio not found
+        '401':
+          description: Unauthorized - Missing or invalid X-API-KEY header
+          content:
+            application/json:
+              example:
+                detail: Invalid or missing X-API-KEY header.
+        '422':
+          description: Validation error (e.g. missing required fields or invalid length)
+  /portfolios/{portfolio_id}/import:
+    post:
+      tags:
+      - Portfolios
+      summary: Execute CSV import
+      description: Imports verified holdings snapshot or transaction history into
+        the specified portfolio.
+      operationId: execute_csv_import_portfolios__portfolio_id__import_post
+      parameters:
+      - name: portfolio_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Portfolio Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CsvImportRequest'
+      responses:
+        '200':
+          description: CSV Import Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsvImportResultResponse'
+        '400':
+          description: CSV format error
+        '404':
+          description: Portfolio not found
+        '401':
+          description: Unauthorized - Missing or invalid X-API-KEY header
+          content:
+            application/json:
+              example:
+                detail: Invalid or missing X-API-KEY header.
+        '422':
+          description: Validation error (e.g. missing required fields or invalid length)
+  /portfolios/{portfolio_id}/analyses:
+    get:
+      tags:
+      - Portfolios
+      summary: Get portfolio analyses history
+      operationId: get_portfolio_analyses_portfolios__portfolio_id__analyses_get
+      parameters:
+      - name: portfolio_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Portfolio Id
+      responses:
+        '200':
+          description: List of portfolio analysis results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AnalysisResultRead'
+                title: Response Get Portfolio Analyses Portfolios  Portfolio Id  Analyses
+                  Get
+        '404':
+          description: Portfolio not found
+        '401':
+          description: Unauthorized - Missing or invalid X-API-KEY header
+          content:
+            application/json:
+              example:
+                detail: Invalid or missing X-API-KEY header.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /analyses/stocks/{stock_id}:
+    post:
+      tags:
+      - Analyses
+      summary: Trigger stock fundamental analysis
+      description: Starts a comprehensive fundamental analysis for a single stock.
+        Returns the job status.
+      operationId: analyze_stock_analyses_stocks__stock_id__post
+      parameters:
+      - name: stock_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Stock Id
+      - name: sync
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Execute synchronously and return completed status
+          default: true
+          title: Sync
+        description: Execute synchronously and return completed status
+      responses:
+        '202':
+          description: Analysis job accepted / completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisJobRead'
+        '404':
+          description: Stock not found
+        '401':
+          description: Unauthorized - Missing or invalid X-API-KEY header
+          content:
+            application/json:
+              example:
+                detail: Invalid or missing X-API-KEY header.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /analyses/portfolios/{portfolio_id}:
+    post:
+      tags:
+      - Analyses
+      summary: Trigger portfolio analysis
+      description: Starts an overall portfolio research analysis covering holdings,
+        diversification, fundamentals, and risks.
+      operationId: analyze_portfolio_analyses_portfolios__portfolio_id__post
+      parameters:
+      - name: portfolio_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Portfolio Id
+      - name: sync
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Execute synchronously and return completed status
+          default: true
+          title: Sync
+        description: Execute synchronously and return completed status
+      responses:
+        '202':
+          description: Portfolio analysis job accepted / completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisJobRead'
+        '404':
+          description: Portfolio not found
+        '401':
+          description: Unauthorized - Missing or invalid X-API-KEY header
+          content:
+            application/json:
+              example:
+                detail: Invalid or missing X-API-KEY header.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /analyses/jobs/{job_id}:
+    get:
+      tags:
+      - Analyses
+      summary: Get analysis job status
+      operationId: get_job_status_analyses_jobs__job_id__get
+      parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Job Id
+      responses:
+        '200':
+          description: Job details and status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisJobRead'
+        '404':
+          description: Job not found
+        '401':
+          description: Unauthorized - Missing or invalid X-API-KEY header
+          content:
+            application/json:
+              example:
+                detail: Invalid or missing X-API-KEY header.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /analyses/results/{result_id}:
+    get:
+      tags:
+      - Analyses
+      summary: Get analysis result details
+      description: Retrieve versioned analysis result including scores, evaluation,
+        metrics, risks, and data gaps.
+      operationId: get_analysis_result_analyses_results__result_id__get
+      parameters:
+      - name: result_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Result Id
+      responses:
+        '200':
+          description: Analysis result details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisResultRead'
+        '404':
+          description: Result not found
+        '401':
+          description: Unauthorized - Missing or invalid X-API-KEY header
+          content:
+            application/json:
+              example:
+                detail: Invalid or missing X-API-KEY header.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /reports:
+    post:
+      tags:
+      - Reports
+      summary: Add and optionally analyze a company report
+      description: Stores quarterly or annual company report text and automatically
+        extracts KPIs, statements, risks, and trends.
+      operationId: create_report_reports_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyReportCreate'
+        required: true
+      responses:
+        '201':
+          description: Report stored and processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyReportRead'
+        '404':
+          description: Stock not found
+        '401':
+          description: Unauthorized - Missing or invalid X-API-KEY header
+          content:
+            application/json:
+              example:
+                detail: Invalid or missing X-API-KEY header.
+        '422':
+          description: Validation error (e.g. missing required fields or invalid length)
+  /reports/{report_id}:
+    get:
+      tags:
+      - Reports
+      summary: Get report and its analyses
+      operationId: get_report_reports__report_id__get
+      parameters:
+      - name: report_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Report Id
+      responses:
+        '200':
+          description: Report details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyReportRead'
+        '404':
+          description: Report not found
+        '401':
+          description: Unauthorized - Missing or invalid X-API-KEY header
+          content:
+            application/json:
+              example:
+                detail: Invalid or missing X-API-KEY header.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /reports/{report_id}/analyze:
+    post:
+      tags:
+      - Reports
+      summary: Run or re-run analysis on an existing report
+      operationId: analyze_existing_report_reports__report_id__analyze_post
+      parameters:
+      - name: report_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Report Id
+      responses:
+        '200':
+          description: Report analysis result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportAnalysisRead'
+        '404':
+          description: Report not found
+        '401':
+          description: Unauthorized - Missing or invalid X-API-KEY header
+          content:
+            application/json:
+              example:
+                detail: Invalid or missing X-API-KEY header.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /reports/analyses/{analysis_id}/verify:
+    patch:
+      tags:
+      - Reports
+      summary: Verify extracted report figures
+      description: Updates verification status of extracted report data from unverified
+        to verified.
+      operationId: verify_analysis_reports_analyses__analysis_id__verify_patch
+      parameters:
+      - name: analysis_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Analysis Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReportVerificationUpdate'
+      responses:
+        '200':
+          description: Verification status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportAnalysisRead'
+        '404':
+          description: Analysis not found
+        '401':
+          description: Unauthorized - Missing or invalid X-API-KEY header
+          content:
+            application/json:
+              example:
+                detail: Invalid or missing X-API-KEY header.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
+    AnalysisJobRead:
+      properties:
+        id:
+          type: integer
+          title: Id
+        job_type:
+          type: string
+          title: Job Type
+        stock_id:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Stock Id
+        portfolio_id:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Portfolio Id
+        status:
+          type: string
+          title: Status
+        error_message:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error Message
+        params:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Params
+        started_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Started At
+        completed_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Completed At
+        created_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At
+      type: object
+      required:
+      - id
+      - job_type
+      - status
+      title: AnalysisJobRead
+    AnalysisResultRead:
+      properties:
+        id:
+          type: integer
+          title: Id
+        job_id:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Job Id
+        stock_id:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Stock Id
+        portfolio_id:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Portfolio Id
+        version:
+          type: integer
+          title: Version
+        analysis_type:
+          type: string
+          title: Analysis Type
+        headline:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Headline
+        score:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Score
+        summary:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Summary
+        details:
+          additionalProperties: true
+          type: object
+          title: Details
+        data_gaps:
+          anyOf:
+          - items: {}
+            type: array
+          - type: 'null'
+          title: Data Gaps
+        uncertainties:
+          anyOf:
+          - items: {}
+            type: array
+          - type: 'null'
+          title: Uncertainties
+        data_sources:
+          anyOf:
+          - items: {}
+            type: array
+          - type: 'null'
+          title: Data Sources
+        data_timestamp:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Data Timestamp
+        created_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At
+      type: object
+      required:
+      - id
+      - version
+      - analysis_type
+      - details
+      title: AnalysisResultRead
+    CompanyReportCreate:
+      properties:
+        stock_id:
+          type: integer
+          title: Stock Id
+        report_type:
+          type: string
+          title: Report Type
+          description: Report type (e.g. ANNUAL_REPORT, QUARTERLY_REPORT, 10-K, 10-Q)
+          examples:
+          - ANNUAL_REPORT
+        fiscal_year:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Fiscal Year
+          examples:
+          - 2024
+        fiscal_period:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Fiscal Period
+          examples:
+          - FY
+          - Q3
+        report_date:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Report Date
+        title:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Title
+          examples:
+          - Q3 2024 Earnings Release
+        content_text:
+          type: string
+          title: Content Text
+          description: Full or summarized text content of the report for analysis
+        source_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Url
+        auto_analyze:
+          type: boolean
+          title: Auto Analyze
+          default: true
+      type: object
+      required:
+      - stock_id
+      - report_type
+      - content_text
+      title: CompanyReportCreate
+    CompanyReportRead:
+      properties:
+        id:
+          type: integer
+          title: Id
+        stock_id:
+          type: integer
+          title: Stock Id
+        report_type:
+          type: string
+          title: Report Type
+        fiscal_year:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Fiscal Year
+        fiscal_period:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Fiscal Period
+        report_date:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Report Date
+        title:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Title
+        content_text:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Content Text
+        source_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Source Url
+        data_source:
+          type: string
+          title: Data Source
+        created_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At
+        analyses:
+          items:
+            $ref: '#/components/schemas/ReportAnalysisRead'
+          type: array
+          title: Analyses
+          default: []
+      type: object
+      required:
+      - id
+      - stock_id
+      - report_type
+      - data_source
+      title: CompanyReportRead
+    CsvImportPreviewResponse:
+      properties:
+        import_type:
+          type: string
+          title: Import Type
+        total_rows:
+          type: integer
+          title: Total Rows
+        valid_rows_count:
+          type: integer
+          title: Valid Rows Count
+        invalid_rows_count:
+          type: integer
+          title: Invalid Rows Count
+        errors:
+          items:
+            type: string
+          type: array
+          title: Errors
+          default: []
+        warnings:
+          items:
+            type: string
+          type: array
+          title: Warnings
+          default: []
+        preview_items:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Preview Items
+          default: []
+      type: object
+      required:
+      - import_type
+      - total_rows
+      - valid_rows_count
+      - invalid_rows_count
+      title: CsvImportPreviewResponse
+    CsvImportRequest:
+      properties:
+        csv_content:
+          type: string
+          title: Csv Content
+          description: Raw CSV content to import or validate
+        forced_type:
+          anyOf:
+          - type: string
+            enum:
+            - holdings
+            - transactions
+          - type: 'null'
+          title: Forced Type
+          description: Optionally force CSV parsing mode (holdings snapshot or transaction
+            history)
+      type: object
+      required:
+      - csv_content
+      title: CsvImportRequest
+    CsvImportResultResponse:
+      properties:
+        portfolio_id:
+          type: integer
+          title: Portfolio Id
+        import_type:
+          type: string
+          title: Import Type
+        total_rows:
+          type: integer
+          title: Total Rows
+        imported_count:
+          type: integer
+          title: Imported Count
+        skipped_count:
+          type: integer
+          title: Skipped Count
+        row_errors:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Row Errors
+          default: []
+      type: object
+      required:
+      - portfolio_id
+      - import_type
+      - total_rows
+      - imported_count
+      - skipped_count
+      title: CsvImportResultResponse
+    FundamentalDataRead:
+      properties:
+        id:
+          type: integer
+          title: Id
+        period_type:
+          type: string
+          title: Period Type
+        fiscal_year:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Fiscal Year
+        fiscal_period:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Fiscal Period
+        period_end_date:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Period End Date
+        revenue:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Revenue
+        gross_profit:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Gross Profit
+        operating_income:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Operating Income
+        net_income:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Net Income
+        eps:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Eps
+        gross_margin:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Gross Margin
+        operating_margin:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Operating Margin
+        net_margin:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Net Margin
+        operating_cash_flow:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Operating Cash Flow
+        free_cash_flow:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Free Cash Flow
+        total_debt:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Total Debt
+        cash_and_equivalents:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Cash And Equivalents
+        current_ratio:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Current Ratio
+        debt_to_equity:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Debt To Equity
+        dividend_per_share:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Dividend Per Share
+        dividend_yield:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Dividend Yield
+        pe_ratio:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Pe Ratio
+        ps_ratio:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Ps Ratio
+        pb_ratio:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Pb Ratio
+        currency:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Currency
+        data_source:
+          type: string
+          title: Data Source
+        created_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At
+      type: object
+      required:
+      - id
+      - period_type
+      - data_source
+      title: FundamentalDataRead
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    PortfolioCreate:
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          minLength: 1
+          title: Name
+          description: Portfolio name
+          examples:
+          - Mein Hauptdepot
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+          description: Optional description
+          examples:
+          - Langfristiges Buy & Hold Depot
+        currency:
+          type: string
+          maxLength: 3
+          minLength: 3
+          title: Currency
+          description: Base currency
+          default: EUR
+          examples:
+          - EUR
+      type: object
+      required:
+      - name
+      title: PortfolioCreate
+    PortfolioHoldingRead:
+      properties:
+        id:
+          type: integer
+          title: Id
+        portfolio_id:
+          type: integer
+          title: Portfolio Id
+        stock_id:
+          type: integer
+          title: Stock Id
+        stock:
+          anyOf:
+          - $ref: '#/components/schemas/StockRead'
+          - type: 'null'
+        shares:
+          type: number
+          title: Shares
+        average_buy_price:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Average Buy Price
+        total_cost:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Total Cost
+        currency:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Currency
+        data_source:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Data Source
+        last_imported_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Imported At
+      type: object
+      required:
+      - id
+      - portfolio_id
+      - stock_id
+      - shares
+      title: PortfolioHoldingRead
+    PortfolioRead:
+      properties:
+        id:
+          type: integer
+          title: Id
+        name:
+          type: string
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        currency:
+          type: string
+          title: Currency
+        created_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At
+        updated_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Updated At
+        holdings:
+          items:
+            $ref: '#/components/schemas/PortfolioHoldingRead'
+          type: array
+          title: Holdings
+          default: []
+        transactions:
+          items:
+            $ref: '#/components/schemas/PortfolioTransactionRead'
+          type: array
+          title: Transactions
+          default: []
+      type: object
+      required:
+      - id
+      - name
+      - currency
+      title: PortfolioRead
+    PortfolioTransactionRead:
+      properties:
+        id:
+          type: integer
+          title: Id
+        portfolio_id:
+          type: integer
+          title: Portfolio Id
+        stock_id:
+          type: integer
+          title: Stock Id
+        stock:
+          anyOf:
+          - $ref: '#/components/schemas/StockRead'
+          - type: 'null'
+        transaction_type:
+          type: string
+          title: Transaction Type
+        shares:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Shares
+        price_per_share:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Price Per Share
+        total_amount:
+          type: number
+          title: Total Amount
+        fees:
+          type: number
+          title: Fees
+        currency:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Currency
+        transaction_date:
+          type: string
+          format: date-time
+          title: Transaction Date
+        external_transaction_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: External Transaction Id
+        notes:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Notes
+      type: object
+      required:
+      - id
+      - portfolio_id
+      - stock_id
+      - transaction_type
+      - total_amount
+      - fees
+      - transaction_date
+      title: PortfolioTransactionRead
+    ReportAnalysisRead:
+      properties:
+        id:
+          type: integer
+          title: Id
+        report_id:
+          type: integer
+          title: Report Id
+        stock_id:
+          type: integer
+          title: Stock Id
+        summary:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Summary
+        extracted_kpis:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Extracted Kpis
+        extracted_statements:
+          anyOf:
+          - items: {}
+            type: array
+          - type: 'null'
+          title: Extracted Statements
+        identified_trends:
+          anyOf:
+          - items: {}
+            type: array
+          - type: 'null'
+          title: Identified Trends
+        risks:
+          anyOf:
+          - items: {}
+            type: array
+          - type: 'null'
+          title: Risks
+        opportunities:
+          anyOf:
+          - items: {}
+            type: array
+          - type: 'null'
+          title: Opportunities
+        is_verified:
+          type: boolean
+          title: Is Verified
+        verification_notes:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Verification Notes
+        data_source:
+          type: string
+          title: Data Source
+        created_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At
+      type: object
+      required:
+      - id
+      - report_id
+      - stock_id
+      - is_verified
+      - data_source
+      title: ReportAnalysisRead
+    ReportVerificationUpdate:
+      properties:
+        is_verified:
+          type: boolean
+          title: Is Verified
+          default: true
+        verification_notes:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Verification Notes
+      type: object
+      title: ReportVerificationUpdate
     StockCreate:
       properties:
         isin:
@@ -122,8 +1686,7 @@ components:
             minLength: 6
           - type: 'null'
           title: Wkn
-          description: Wertpapierkennnummer (German securities identification code,
-            6 characters)
+          description: Wertpapierkennnummer (6 characters)
           examples:
           - '865985'
         ticker:
@@ -165,6 +1728,58 @@ components:
           - USD
       type: object
       title: StockCreate
+    StockPriceRead:
+      properties:
+        id:
+          type: integer
+          title: Id
+        date:
+          type: string
+          format: date
+          title: Date
+        open:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Open
+        high:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: High
+        low:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Low
+        close:
+          type: number
+          title: Close
+        adjusted_close:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Adjusted Close
+        volume:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Volume
+        currency:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Currency
+        data_source:
+          type: string
+          title: Data Source
+      type: object
+      required:
+      - id
+      - date
+      - close
+      - data_source
+      title: StockPriceRead
     StockRead:
       properties:
         id:
@@ -174,7 +1789,9 @@ components:
           examples:
           - 1
         isin:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Isin
           description: International Securities Identification Number
           examples:
@@ -219,11 +1836,57 @@ components:
           description: ISO 4217 Currency Code
           examples:
           - USD
+        sector:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sector
+        industry:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Industry
+        country:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Country
+        created_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Created At
       type: object
       required:
       - id
-      - isin
       title: StockRead
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
   securitySchemes:
     ApiKeyAuth:
       type: apiKey
