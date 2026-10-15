@@ -370,3 +370,110 @@ def test_screener_worker_processes_pending_jobs():
         assert updated_job.status == "COMPLETED"
         assert len(updated_job.results) == 1
         assert updated_job.results[0].score > 0
+
+
+def test_csv_importer_purchase_price_and_current_price(client):
+    csv_content = (
+        "ISIN,Name,Shares,Purchase Price,Current Price,Currency\n"
+        "US0378331005,Apple Inc.,10,150.00,180.50,EUR\n"
+        "DE0007164600,SAP SE,20,120.00,135.00,EUR\n"
+    )
+
+    # 1. Create Portfolio
+    p_resp = client.post("/portfolios", json={"name": "Depot mit Preisen", "currency": "EUR"}, headers=AUTH_HEADERS)
+    assert p_resp.status_code == 201
+    portfolio_id = p_resp.json()["id"]
+
+    # 2. Preview CSV import
+    prev_resp = client.post(
+        f"/portfolios/{portfolio_id}/import/preview",
+        json={"csv_content": csv_content},
+        headers=AUTH_HEADERS,
+    )
+    assert prev_resp.status_code == 200
+    prev_data = prev_resp.json()
+    assert prev_data["valid_rows_count"] == 2
+    assert prev_data["preview_items"][0]["purchase_price"] == 150.00
+    assert prev_data["preview_items"][0]["current_price"] == 180.50
+
+    # 3. Execute CSV import
+    exec_resp = client.post(
+        f"/portfolios/{portfolio_id}/import",
+        json={"csv_content": csv_content},
+        headers=AUTH_HEADERS,
+    )
+    assert exec_resp.status_code == 200
+    assert exec_resp.json()["imported_count"] == 2
+
+    # 4. Check portfolio details and summary
+    port_resp = client.get(f"/portfolios/{portfolio_id}", headers=AUTH_HEADERS)
+    assert port_resp.status_code == 200
+    port_data = port_resp.json()
+    assert len(port_data["holdings"]) == 2
+    apple_h = next(h for h in port_data["holdings"] if h["stock"]["ticker"] == "AAPL" or h["stock"]["isin"] == "US0378331005")
+    assert apple_h["purchase_price"] == 150.00
+    assert apple_h["current_price"] == 180.50
+
+    sum_resp = client.get(f"/portfolios/{portfolio_id}/summary", headers=AUTH_HEADERS)
+    assert sum_resp.status_code == 200
+    sum_data = sum_resp.json()
+    assert sum_data["total_cost"] == (10 * 150.00) + (20 * 120.00)  # 1500 + 2400 = 3900.0
+    assert sum_data["total_value"] == (10 * 180.50) + (20 * 135.00)  # 1805 + 2700 = 4505.0
+
+
+def test_manual_holding_with_purchase_price_and_current_price(client):
+    p_resp = client.post("/portfolios", json={"name": "Manuelles Depot", "currency": "EUR"}, headers=AUTH_HEADERS)
+    assert p_resp.status_code == 201
+    portfolio_id = p_resp.json()["id"]
+
+    holding_payload = {
+        "ticker": "MSFT",
+        "name": "Microsoft Corp.",
+        "shares": 5.0,
+        "purchase_price": 350.00,
+        "current_price": 420.00,
+        "currency": "EUR",
+    }
+    h_resp = client.post(f"/portfolios/{portfolio_id}/holdings", json=holding_payload, headers=AUTH_HEADERS)
+    assert h_resp.status_code == 200
+    h_data = h_resp.json()
+    assert h_data["purchase_price"] == 350.00
+    assert h_data["average_buy_price"] == 350.00
+    assert h_data["current_price"] == 420.00
+
+
+def test_csv_importer_german_purchase_and_current_price(client):
+    csv_german = (
+        "ISIN;Name;Stück;Kaufpreis;Aktueller Kurs;Währung\n"
+        "US0378331005;Apple Inc.;10;150,00;180,50;EUR\n"
+        "DE0007164600;SAP SE;20;120,00;135,00;EUR\n"
+    )
+
+    p_resp = client.post("/portfolios", json={"name": "Deutsches Depot", "currency": "EUR"}, headers=AUTH_HEADERS)
+    assert p_resp.status_code == 201
+    portfolio_id = p_resp.json()["id"]
+
+    prev_resp = client.post(
+        f"/portfolios/{portfolio_id}/import/preview",
+        json={"csv_content": csv_german},
+        headers=AUTH_HEADERS,
+    )
+    assert prev_resp.status_code == 200
+    prev_data = prev_resp.json()
+    assert prev_data["valid_rows_count"] == 2
+    assert prev_data["preview_items"][0]["purchase_price"] == 150.00
+    assert prev_data["preview_items"][0]["current_price"] == 180.50
+
+    exec_resp = client.post(
+        f"/portfolios/{portfolio_id}/import",
+        json={"csv_content": csv_german},
+        headers=AUTH_HEADERS,
+    )
+    assert exec_resp.status_code == 200
+    assert exec_resp.json()["imported_count"] == 2
+
+    sum_resp = client.get(f"/portfolios/{portfolio_id}/summary", headers=AUTH_HEADERS)
+    assert sum_resp.status_code == 200
+    sum_data = sum_resp.json()
+    assert sum_data["total_cost"] == 3900.0
+    assert sum_data["total_value"] == 4505.0

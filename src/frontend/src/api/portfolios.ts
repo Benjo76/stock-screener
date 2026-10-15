@@ -41,6 +41,9 @@ export const portfoliosApi = {
       name?: string;
       shares: number;
       average_buy_price?: number;
+      purchase_price?: number;
+      current_price?: number;
+      price?: number;
       currency?: string;
     }
   ) => api.post<PortfolioHolding>(`/portfolios/${portfolioId}/holdings`, data),

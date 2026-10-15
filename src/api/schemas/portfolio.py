@@ -20,6 +20,8 @@ class PortfolioHoldingRead(BaseModel):
     stock: StockRead | None = None
     shares: float
     average_buy_price: float | None = None
+    purchase_price: float | None = None
+    current_price: float | None = None
     total_cost: float | None = None
     currency: str | None = None
     data_source: str | None = None
@@ -74,8 +76,12 @@ class CsvParsedItem(BaseModel):
     name: str | None = None
     shares: float | None = None
     price: float | None = None
+    purchase_price: float | None = None
+    current_price: float | None = None
+    average_buy_price: float | None = None
     total_amount: float | None = None
     transaction_type: str | None = None
+    currency: str | None = None
     is_valid: bool
     errors: list[str] = []
 
@@ -113,6 +119,9 @@ class PortfolioHoldingCreate(BaseModel):
     name: str | None = None
     shares: float = Field(gt=0, description="Number of shares")
     average_buy_price: float | None = Field(default=None, ge=0, description="Average cost basis per share")
+    purchase_price: float | None = Field(default=None, ge=0, description="Purchase price per share (alias for average_buy_price)")
+    current_price: float | None = Field(default=None, ge=0, description="Current market price per share")
+    price: float | None = Field(default=None, ge=0, description="Price per share (fallback)")
     currency: str = Field(default="EUR", min_length=3, max_length=3)
 
 

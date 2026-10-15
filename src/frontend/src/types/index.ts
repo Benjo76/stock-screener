@@ -79,7 +79,12 @@ export interface PortfolioHolding {
   stock?: Stock;
   shares: number;
   average_buy_price: number | null;
+  purchase_price?: number | null;
+  current_price?: number | null;
   total_cost: number | null;
+  market_value?: number | null;
+  gain_loss?: number | null;
+  return_pct?: number | null;
   currency: string | null;
   data_source?: string | null;
   last_imported_at?: string | null;
@@ -122,6 +127,7 @@ export interface TopPositionItem {
   isin: string | null;
   shares: number;
   average_buy_price: number | null;
+  purchase_price?: number | null;
   current_price: number | null;
   total_cost: number | null;
   market_value: number | null;
@@ -266,6 +272,9 @@ export interface CsvPreviewItem {
   name?: string;
   shares?: number;
   average_buy_price?: number;
+  purchase_price?: number;
+  current_price?: number;
+  price?: number;
   total_cost?: number;
   price_per_share?: number;
   total_amount?: number;

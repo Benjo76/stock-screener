@@ -111,6 +111,7 @@ class DashboardService:
                     "isin": stk.isin if stk else None,
                     "shares": h.shares,
                     "average_buy_price": h.average_buy_price,
+                    "purchase_price": h.average_buy_price,
                     "current_price": latest_price.close if latest_price else None,
                     "total_cost": round(cost, 2),
                     "market_value": m_val,

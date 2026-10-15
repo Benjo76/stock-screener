@@ -32,7 +32,17 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { AllocationPieChart } from '../components/charts/AllocationPieChart';
 import { CsvImportPreview, CsvImportResult } from '../types';
 
-type SortField = 'name' | 'market_value' | 'return_pct' | 'sector' | 'currency' | 'shares';
+type SortField =
+  | 'name'
+  | 'shares'
+  | 'purchase_price'
+  | 'total_cost'
+  | 'current_price'
+  | 'market_value'
+  | 'gain_loss'
+  | 'return_pct'
+  | 'sector'
+  | 'currency';
 
 export const PortfolioDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -57,6 +67,7 @@ export const PortfolioDetailPage: React.FC = () => {
   const [holdingName, setHoldingName] = useState('');
   const [holdingShares, setHoldingShares] = useState('');
   const [holdingBuyPrice, setHoldingBuyPrice] = useState('');
+  const [holdingCurrentPrice, setHoldingCurrentPrice] = useState('');
 
   // New Transaction Form State
   const [txStockId, setTxStockId] = useState<number | ''>('');
@@ -112,6 +123,7 @@ export const PortfolioDetailPage: React.FC = () => {
       setHoldingName('');
       setHoldingShares('');
       setHoldingBuyPrice('');
+      setHoldingCurrentPrice('');
     },
   });
 
@@ -172,7 +184,41 @@ export const PortfolioDetailPage: React.FC = () => {
   // Filtered & Sorted Holdings
   const displayedHoldings = useMemo(() => {
     if (!summary?.top_holdings) return [];
-    let list = [...summary.top_holdings];
+    let list = summary.top_holdings.map((h) => {
+      const buyPrice =
+        h.purchase_price !== undefined && h.purchase_price !== null
+          ? h.purchase_price
+          : h.average_buy_price ?? null;
+      const currentPrice = h.current_price ?? null;
+      const shares = h.shares || 0;
+
+      const totalCost = h.total_cost ?? (buyPrice !== null ? buyPrice * shares : null);
+      const marketValue = h.market_value ?? (currentPrice !== null ? currentPrice * shares : null);
+
+      let gainLoss: number | null = h.gain_loss ?? null;
+      let returnPct: number | null = h.return_pct ?? null;
+
+      if (gainLoss === null && marketValue !== null && totalCost !== null) {
+        gainLoss = marketValue - totalCost;
+      } else if (gainLoss === null && currentPrice !== null && buyPrice !== null && shares > 0) {
+        gainLoss = (currentPrice - buyPrice) * shares;
+      }
+
+      if (returnPct === null && totalCost !== null && totalCost > 0 && gainLoss !== null) {
+        returnPct = (gainLoss / totalCost) * 100;
+      } else if (returnPct === null && buyPrice !== null && buyPrice > 0 && currentPrice !== null) {
+        returnPct = ((currentPrice - buyPrice) / buyPrice) * 100;
+      }
+
+      return {
+        ...h,
+        purchase_price: buyPrice,
+        total_cost: totalCost !== null ? Math.round(totalCost * 100) / 100 : null,
+        market_value: marketValue !== null ? Math.round(marketValue * 100) / 100 : null,
+        gain_loss: gainLoss !== null ? Math.round(gainLoss * 100) / 100 : null,
+        return_pct: returnPct !== null ? Math.round(returnPct * 100) / 100 : null,
+      };
+    });
 
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase();
@@ -502,9 +548,33 @@ export const PortfolioDetailPage: React.FC = () => {
                         <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
                       </div>
                     </TableHead>
-                    <TableHead className="text-right">Einstandskurs</TableHead>
-                    <TableHead className="text-right">Einstandswert</TableHead>
-                    <TableHead className="text-right">Aktueller Kurs</TableHead>
+                    <TableHead
+                      className="text-right cursor-pointer select-none"
+                      onClick={() => handleSort('purchase_price')}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        <span>Kaufpreis (Purchase Price)</span>
+                        <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="text-right cursor-pointer select-none"
+                      onClick={() => handleSort('total_cost')}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        <span>Einstandswert</span>
+                        <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
+                      </div>
+                    </TableHead>
+                    <TableHead
+                      className="text-right cursor-pointer select-none"
+                      onClick={() => handleSort('current_price')}
+                    >
+                      <div className="flex items-center justify-end gap-1">
+                        <span>Aktueller Kurs (Current Price)</span>
+                        <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
+                      </div>
+                    </TableHead>
                     <TableHead
                       className="text-right cursor-pointer select-none"
                       onClick={() => handleSort('market_value')}
@@ -516,10 +586,10 @@ export const PortfolioDetailPage: React.FC = () => {
                     </TableHead>
                     <TableHead
                       className="text-right cursor-pointer select-none"
-                      onClick={() => handleSort('return_pct')}
+                      onClick={() => handleSort('gain_loss')}
                     >
                       <div className="flex items-center justify-end gap-1">
-                        <span>Gewinn / Verlust</span>
+                        <span>Gewinn / Verlust (G/V)</span>
                         <ArrowUpDown className="h-3 w-3 text-muted-foreground" />
                       </div>
                     </TableHead>
@@ -553,8 +623,8 @@ export const PortfolioDetailPage: React.FC = () => {
                         {formatNumber(h.shares, 2)}
                       </TableCell>
                       <TableCell className="text-right text-xs">
-                        {h.average_buy_price !== null
-                          ? formatCurrency(h.average_buy_price, h.currency)
+                        {(h.purchase_price ?? h.average_buy_price) !== null && (h.purchase_price ?? h.average_buy_price) !== undefined
+                          ? formatCurrency(h.purchase_price ?? h.average_buy_price, h.currency)
                           : '—'}
                       </TableCell>
                       <TableCell className="text-right text-xs font-mono">
@@ -573,12 +643,18 @@ export const PortfolioDetailPage: React.FC = () => {
                           : formatCurrency(h.total_cost, h.currency)}
                       </TableCell>
                       <TableCell className="text-right text-xs font-semibold">
-                        {h.gain_loss !== null ? (
-                          <span className={h.gain_loss >= 0 ? 'text-emerald-500' : 'text-rose-500'}>
-                            {h.gain_loss >= 0 ? '+' : ''}
-                            {formatCurrency(h.gain_loss, h.currency)}
-                            {h.return_pct !== null && ` (${formatPercent(h.return_pct)})`}
-                          </span>
+                        {h.gain_loss !== null && h.gain_loss !== undefined ? (
+                          <div className={`flex flex-col items-end ${h.gain_loss >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                            <span>
+                              {h.gain_loss >= 0 ? '+' : ''}
+                              {formatCurrency(h.gain_loss, h.currency)}
+                            </span>
+                            <span className="text-[11px] font-medium opacity-90">
+                              {h.return_pct !== null && h.return_pct !== undefined
+                                ? formatPercent(h.return_pct)
+                                : '—'}
+                            </span>
+                          </div>
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
@@ -782,6 +858,8 @@ export const PortfolioDetailPage: React.FC = () => {
               name: holdingName.trim() || undefined,
               shares: parseFloat(holdingShares),
               average_buy_price: holdingBuyPrice ? parseFloat(holdingBuyPrice) : undefined,
+              purchase_price: holdingBuyPrice ? parseFloat(holdingBuyPrice) : undefined,
+              current_price: holdingCurrentPrice ? parseFloat(holdingCurrentPrice) : undefined,
               currency: portfolio.currency,
             });
           }}
@@ -803,7 +881,7 @@ export const PortfolioDetailPage: React.FC = () => {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Input
               label="Stückzahl *"
               type="number"
@@ -814,12 +892,20 @@ export const PortfolioDetailPage: React.FC = () => {
               required
             />
             <Input
-              label={`Einstandspreis je Aktie (${portfolio.currency})`}
+              label={`Kaufpreis (Purchase Price) je Aktie (${portfolio.currency})`}
               type="number"
               step="any"
               placeholder="z. B. 150.00"
               value={holdingBuyPrice}
               onChange={(e) => setHoldingBuyPrice(e.target.value)}
+            />
+            <Input
+              label={`Aktueller Kurs (Current Price) je Aktie (${portfolio.currency})`}
+              type="number"
+              step="any"
+              placeholder="z. B. 180.00"
+              value={holdingCurrentPrice}
+              onChange={(e) => setHoldingCurrentPrice(e.target.value)}
             />
           </div>
 
@@ -1014,7 +1100,7 @@ export const PortfolioDetailPage: React.FC = () => {
                   CSV-Datei auswählen oder hierher ziehen
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Unterstützt Standardformate (ISIN, WKN, Ticker, Shares, Price) mit Komma oder Semikolon.
+                  Unterstützt Standardformate (ISIN, WKN, Ticker, Shares, Purchase Price, Current Price) mit Komma oder Semikolon.
                 </p>
                 <input
                   type="file"
@@ -1041,7 +1127,7 @@ export const PortfolioDetailPage: React.FC = () => {
                 </label>
                 <textarea
                   className="w-full h-32 p-3 font-mono text-xs rounded-md border border-input bg-card text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                  placeholder="ISIN,Name,Shares,Price,Currency&#10;US0378331005,Apple Inc.,10,180.50,EUR"
+                  placeholder="ISIN,Name,Shares,Purchase Price,Current Price,Currency&#10;US0378331005,Apple Inc.,10,150.00,180.50,EUR"
                   value={csvRawText}
                   onChange={(e) => setCsvRawText(e.target.value)}
                 />
@@ -1095,14 +1181,28 @@ export const PortfolioDetailPage: React.FC = () => {
               <div className="border rounded-lg overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead className="bg-muted text-muted-foreground border-b">
-                    <tr>
-                      <th className="p-2 text-left">Zeile</th>
-                      <th className="p-2 text-left">ISIN / Ticker</th>
-                      <th className="p-2 text-left">Name</th>
-                      <th className="p-2 text-right">Stück</th>
-                      <th className="p-2 text-right">Kurs / Betrag</th>
-                      <th className="p-2 text-center">Status</th>
-                    </tr>
+                    {csvPreview.import_type === 'holdings' ? (
+                      <tr>
+                        <th className="p-2 text-left">Zeile</th>
+                        <th className="p-2 text-left">ISIN / Ticker</th>
+                        <th className="p-2 text-left">Name</th>
+                        <th className="p-2 text-right">Stück</th>
+                        <th className="p-2 text-right">Kaufpreis (Purchase Price)</th>
+                        <th className="p-2 text-right">Aktueller Kurs (Current Price)</th>
+                        <th className="p-2 text-right">Gewinn / Verlust (G/V)</th>
+                        <th className="p-2 text-center">Status</th>
+                      </tr>
+                    ) : (
+                      <tr>
+                        <th className="p-2 text-left">Zeile</th>
+                        <th className="p-2 text-left">ISIN / Ticker</th>
+                        <th className="p-2 text-left">Name</th>
+                        <th className="p-2 text-left">Typ</th>
+                        <th className="p-2 text-right">Stück</th>
+                        <th className="p-2 text-right">Kurs / Betrag</th>
+                        <th className="p-2 text-center">Status</th>
+                      </tr>
+                    )}
                   </thead>
                   <tbody className="divide-y divide-border">
                     {csvPreview.preview_items.slice(0, 15).map((row) => (
@@ -1110,10 +1210,43 @@ export const PortfolioDetailPage: React.FC = () => {
                         <td className="p-2 font-mono">{row.row_number}</td>
                         <td className="p-2 font-mono font-medium">{row.isin || row.ticker || row.wkn || '—'}</td>
                         <td className="p-2 truncate max-w-xs">{row.name || '—'}</td>
-                        <td className="p-2 text-right font-mono">{row.shares ?? '—'}</td>
-                        <td className="p-2 text-right font-mono">
-                          {row.average_buy_price ?? row.price_per_share ?? row.total_amount ?? '—'}
-                        </td>
+                        {csvPreview.import_type === 'holdings' ? (
+                          <>
+                            <td className="p-2 text-right font-mono">{row.shares ?? '—'}</td>
+                            <td className="p-2 text-right font-mono">
+                              {row.purchase_price ?? row.average_buy_price ?? row.price ?? '—'}
+                            </td>
+                            <td className="p-2 text-right font-mono">
+                              {row.current_price ?? '—'}
+                            </td>
+                            <td className="p-2 text-right font-mono">
+                              {(() => {
+                                const buyPrice = row.purchase_price ?? row.average_buy_price ?? row.price;
+                                const curPrice = row.current_price;
+                                const shares = row.shares || 1;
+                                if (buyPrice !== null && buyPrice !== undefined && curPrice !== null && curPrice !== undefined) {
+                                  const glAbs = (curPrice - buyPrice) * shares;
+                                  const glPct = buyPrice > 0 ? ((curPrice - buyPrice) / buyPrice) * 100 : null;
+                                  return (
+                                    <span className={glAbs >= 0 ? 'text-emerald-500 font-semibold' : 'text-rose-500 font-semibold'}>
+                                      {glAbs >= 0 ? '+' : ''}{formatCurrency(glAbs, row.currency || portfolio.currency)}
+                                      {glPct !== null && ` (${formatPercent(glPct)})`}
+                                    </span>
+                                  );
+                                }
+                                return <span className="text-muted-foreground">—</span>;
+                              })()}
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="p-2 font-medium">{row.transaction_type || 'BUY'}</td>
+                            <td className="p-2 text-right font-mono">{row.shares ?? '—'}</td>
+                            <td className="p-2 text-right font-mono">
+                              {row.price_per_share ?? row.average_buy_price ?? row.total_amount ?? '—'}
+                            </td>
+                          </>
+                        )}
                         <td className="p-2 text-center">
                           {row.is_valid ? (
                             <Badge variant="success" className="text-[10px]">Gültig</Badge>

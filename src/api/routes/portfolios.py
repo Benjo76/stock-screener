@@ -135,6 +135,9 @@ def preview_csv_import(
                 "name": r.name,
                 "shares": r.shares,
                 "average_buy_price": r.average_buy_price,
+                "purchase_price": r.purchase_price or r.average_buy_price,
+                "current_price": r.current_price,
+                "price": r.purchase_price or r.average_buy_price,
                 "total_cost": r.total_cost,
                 "currency": r.currency,
                 "is_valid": r.is_valid,
@@ -243,6 +246,7 @@ def get_portfolio_summary(portfolio_id: int, db: DbSession):
     summary="Add or update portfolio holding",
 )
 def add_holding(portfolio_id: int, payload: PortfolioHoldingCreate, db: DbSession):
+    avg_price = payload.average_buy_price if payload.average_buy_price is not None else (payload.purchase_price if payload.purchase_price is not None else payload.price)
     return PortfolioService.add_or_update_holding(
         db=db,
         portfolio_id=portfolio_id,
@@ -252,7 +256,8 @@ def add_holding(portfolio_id: int, payload: PortfolioHoldingCreate, db: DbSessio
         ticker=payload.ticker,
         name=payload.name,
         shares=payload.shares,
-        average_buy_price=payload.average_buy_price,
+        average_buy_price=avg_price,
+        current_price=payload.current_price,
         currency=payload.currency,
     )
 

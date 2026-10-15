@@ -292,56 +292,82 @@ export const DashboardPage: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {summary.top_positions.map((pos, idx) => (
-                  <TableRow key={idx}>
-                    <TableCell className="font-medium">
-                      <Link
-                        to={`/analysis?stockId=${pos.stock_id}`}
-                        className="hover:underline flex flex-col"
-                      >
-                        <span className="font-semibold text-foreground">{pos.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {pos.ticker || pos.isin || '—'}
-                        </span>
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {pos.portfolio_name || `Depot ${pos.portfolio_id}`}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-xs">
-                      {formatNumber(pos.shares, 2)}
-                    </TableCell>
-                    <TableCell className="text-right text-xs">
-                      {pos.average_buy_price !== null
-                        ? formatCurrency(pos.average_buy_price, pos.currency)
-                        : '—'}
-                    </TableCell>
-                    <TableCell className="text-right font-semibold text-xs">
-                      {pos.current_price !== null
-                        ? formatCurrency(pos.current_price, pos.currency)
-                        : <span className="text-muted-foreground font-normal">Keine Daten</span>}
-                    </TableCell>
-                    <TableCell className="text-right font-bold text-xs">
-                      {pos.market_value !== null
-                        ? formatCurrency(pos.market_value, pos.currency)
-                        : formatCurrency(pos.total_cost, pos.currency)}
-                    </TableCell>
-                    <TableCell className="text-right text-xs font-semibold">
-                      {pos.gain_loss !== null ? (
-                        <span className={pos.gain_loss >= 0 ? 'text-emerald-500' : 'text-rose-500'}>
-                          {pos.gain_loss >= 0 ? '+' : ''}
-                          {formatCurrency(pos.gain_loss, pos.currency)}
-                          {pos.return_pct !== null && ` (${formatPercent(pos.return_pct)})`}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right text-xs">
-                      <Badge variant="secondary">{pos.weight_pct?.toFixed(1) || '0.0'} %</Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {summary.top_positions.map((rawPos, idx) => {
+                  const buyPrice = rawPos.purchase_price ?? rawPos.average_buy_price ?? null;
+                  const currentPrice = rawPos.current_price ?? null;
+                  const shares = rawPos.shares || 0;
+                  const totalCost = rawPos.total_cost ?? (buyPrice !== null ? buyPrice * shares : null);
+                  const marketValue = rawPos.market_value ?? (currentPrice !== null ? currentPrice * shares : null);
+                  let gainLoss = rawPos.gain_loss ?? null;
+                  let returnPct = rawPos.return_pct ?? null;
+
+                  if (gainLoss === null && marketValue !== null && totalCost !== null) {
+                    gainLoss = marketValue - totalCost;
+                  } else if (gainLoss === null && currentPrice !== null && buyPrice !== null && shares > 0) {
+                    gainLoss = (currentPrice - buyPrice) * shares;
+                  }
+
+                  if (returnPct === null && totalCost !== null && totalCost > 0 && gainLoss !== null) {
+                    returnPct = (gainLoss / totalCost) * 100;
+                  } else if (returnPct === null && buyPrice !== null && buyPrice > 0 && currentPrice !== null) {
+                    returnPct = ((currentPrice - buyPrice) / buyPrice) * 100;
+                  }
+
+                  return (
+                    <TableRow key={idx}>
+                      <TableCell className="font-medium">
+                        <Link
+                          to={`/analysis?stockId=${rawPos.stock_id}`}
+                          className="hover:underline flex flex-col"
+                        >
+                          <span className="font-semibold text-foreground">{rawPos.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {rawPos.ticker || rawPos.isin || '—'}
+                          </span>
+                        </Link>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {rawPos.portfolio_name || `Depot ${rawPos.portfolio_id}`}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-xs">
+                        {formatNumber(rawPos.shares, 2)}
+                      </TableCell>
+                      <TableCell className="text-right text-xs">
+                        {buyPrice !== null
+                          ? formatCurrency(buyPrice, rawPos.currency)
+                          : '—'}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold text-xs">
+                        {currentPrice !== null
+                          ? formatCurrency(currentPrice, rawPos.currency)
+                          : <span className="text-muted-foreground font-normal">Keine Daten</span>}
+                      </TableCell>
+                      <TableCell className="text-right font-bold text-xs">
+                        {marketValue !== null
+                          ? formatCurrency(marketValue, rawPos.currency)
+                          : (totalCost !== null ? formatCurrency(totalCost, rawPos.currency) : '—')}
+                      </TableCell>
+                      <TableCell className="text-right text-xs font-semibold">
+                        {gainLoss !== null ? (
+                          <div className={`flex flex-col items-end ${gainLoss >= 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                            <span>
+                              {gainLoss >= 0 ? '+' : ''}
+                              {formatCurrency(gainLoss, rawPos.currency)}
+                            </span>
+                            <span className="text-[11px] font-medium opacity-90">
+                              {returnPct !== null ? formatPercent(returnPct) : '—'}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right text-xs">
+                        <Badge variant="secondary">{rawPos.weight_pct?.toFixed(1) || '0.0'} %</Badge>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           ) : (

@@ -141,6 +141,8 @@ class PortfolioAnalyzer:
                 "sector": sec,
                 "shares": shares,
                 "average_buy_price": avg_price,
+                "purchase_price": avg_price,
+                "current_price": pos_curr_price,
                 "latest_price": latest_price,
                 "total_cost": cost,
                 "current_value": pos_value,

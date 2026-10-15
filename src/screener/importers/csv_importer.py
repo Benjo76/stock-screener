@@ -96,6 +96,8 @@ class ParsedHoldingRow:
     name: str | None = None
     shares: float = 0.0
     average_buy_price: float | None = None
+    purchase_price: float | None = None
+    current_price: float | None = None
     total_cost: float | None = None
     currency: str = "EUR"
     is_valid: bool = True
@@ -144,7 +146,35 @@ class CsvPortfolioImporter:
         "ticker": ["ticker", "symbol", "tickersymbol", "ticker_symbol"],
         "name": ["name", "bezeichnung", "wertpapiername", "wertpapier", "security_name", "title"],
         "shares": ["shares", "stueck", "stück", "anzahl", "bestand", "menge", "quantity", "units"],
-        "price": ["price", "kurs", "kaufkurs", "einstandskurs", "preis", "purchase_price", "price_per_share"],
+        "purchase_price": [
+            "purchase_price",
+            "purchaseprice",
+            "purchase_price_per_share",
+            "kaufpreis",
+            "kaufkurs",
+            "einstandskurs",
+            "einstandspreis",
+            "buy_price",
+            "buyprice",
+            "average_buy_price",
+            "avg_buy_price",
+            "cost_basis",
+            "cost_per_share",
+        ],
+        "current_price": [
+            "current_price",
+            "currentprice",
+            "aktueller_kurs",
+            "aktueller_preis",
+            "akt_kurs",
+            "akt_preis",
+            "marktpreis",
+            "market_price",
+            "last_price",
+            "letzter_kurs",
+            "kurs_aktuell",
+        ],
+        "price": ["price", "kurs", "preis", "price_per_share", "kurs_je_aktie", "preis_je_aktie"],
         "total_amount": ["total", "gesamt", "gesamtwert", "kurswert", "wert", "total_amount", "amount", "betrag", "ausmachender_betrag"],
         "fees": ["fees", "gebuehren", "gebühren", "spesen", "kosten", "fee", "courtage"],
         "type": ["type", "typ", "art", "transaktionstyp", "buchungstyp", "geschaeftsart", "geschäftsart", "action"],
@@ -307,13 +337,22 @@ class CsvPortfolioImporter:
         elif shares_val < 0:
             errors.append("Shares / Quantity cannot be negative")
 
+        purchase_price_val = parse_number(row_dict.get("purchase_price"))
+        current_price_val = parse_number(row_dict.get("current_price"))
         price_val = parse_number(row_dict.get("price"))
-        if price_val is not None and price_val < 0:
-            errors.append("Average buy price cannot be negative")
+
+        if purchase_price_val is None and price_val is not None:
+            purchase_price_val = price_val
+
+        if purchase_price_val is not None and purchase_price_val < 0:
+            errors.append("Purchase price cannot be negative")
+
+        if current_price_val is not None and current_price_val < 0:
+            errors.append("Current price cannot be negative")
 
         total_cost_val = parse_number(row_dict.get("total_amount"))
-        if total_cost_val is None and price_val is not None and shares_val:
-            total_cost_val = round(shares_val * price_val, 2)
+        if total_cost_val is None and purchase_price_val is not None and shares_val:
+            total_cost_val = round(shares_val * purchase_price_val, 2)
         elif total_cost_val is not None and total_cost_val < 0:
             errors.append("Total cost cannot be negative")
 
@@ -326,7 +365,9 @@ class CsvPortfolioImporter:
                 ticker=ticker.upper() if ticker else None,
                 name=name,
                 shares=shares_val,
-                average_buy_price=price_val,
+                average_buy_price=purchase_price_val,
+                purchase_price=purchase_price_val,
+                current_price=current_price_val,
                 total_cost=total_cost_val,
                 currency=currency.upper()[:3] if currency else "EUR",
                 is_valid=(len(errors) == 0),
@@ -388,6 +429,8 @@ class CsvPortfolioImporter:
             errors.append("Shares cannot be negative")
 
         price_val = parse_number(row_dict.get("price"))
+        if price_val is None:
+            price_val = parse_number(row_dict.get("purchase_price"))
         fees_val = parse_number(row_dict.get("fees")) or 0.0
         if fees_val < 0:
             errors.append("Fees cannot be negative")

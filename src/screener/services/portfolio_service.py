@@ -149,6 +149,29 @@ class PortfolioService:
                     db.add(holding)
                     db.flush()
 
+                if row.current_price is not None:
+                    from screener.db.models import StockPrice
+                    today = now.date()
+                    existing_sp = db.scalar(
+                        select(StockPrice).where(
+                            StockPrice.stock_id == stock.id,
+                            StockPrice.date == today,
+                            StockPrice.data_source == "csv_import",
+                        )
+                    )
+                    if existing_sp:
+                        existing_sp.close = row.current_price
+                    else:
+                        db.add(
+                            StockPrice(
+                                stock_id=stock.id,
+                                date=today,
+                                close=row.current_price,
+                                currency=row.currency or "EUR",
+                                data_source="csv_import",
+                            )
+                        )
+
                 imported_count += 1
 
             db.commit()
@@ -283,6 +306,7 @@ class PortfolioService:
         name: str | None = None,
         shares: float = 0.0,
         average_buy_price: float | None = None,
+        current_price: float | None = None,
         currency: str = "EUR",
     ) -> PortfolioHolding:
         portfolio = cls.get_portfolio_by_id(db, portfolio_id)
@@ -329,6 +353,29 @@ class PortfolioService:
                 last_imported_at=now,
             )
             db.add(holding)
+
+        if current_price is not None:
+            from screener.db.models import StockPrice
+            today = now.date()
+            existing_sp = db.scalar(
+                select(StockPrice).where(
+                    StockPrice.stock_id == stock.id,
+                    StockPrice.date == today,
+                    StockPrice.data_source == "manual",
+                )
+            )
+            if existing_sp:
+                existing_sp.close = current_price
+            else:
+                db.add(
+                    StockPrice(
+                        stock_id=stock.id,
+                        date=today,
+                        close=current_price,
+                        currency=currency,
+                        data_source="manual",
+                    )
+                )
 
         portfolio.updated_at = now
         db.commit()
@@ -486,6 +533,7 @@ class PortfolioService:
                 "isin": stk.isin if stk else None,
                 "shares": h.shares,
                 "average_buy_price": h.average_buy_price,
+                "purchase_price": h.average_buy_price,
                 "current_price": latest_price.close if latest_price else None,
                 "total_cost": round(cost, 2),
                 "market_value": m_val,

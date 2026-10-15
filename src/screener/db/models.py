@@ -158,6 +158,17 @@ class PortfolioHolding(Base):
     portfolio: Mapped["Portfolio"] = relationship("Portfolio", back_populates="holdings")
     stock: Mapped["Stock"] = relationship("Stock", back_populates="holdings")
 
+    @property
+    def purchase_price(self) -> float | None:
+        return self.average_buy_price
+
+    @property
+    def current_price(self) -> float | None:
+        if self.stock and self.stock.prices:
+            latest = max(self.stock.prices, key=lambda p: p.date if p.date else date.min)
+            return latest.close
+        return None
+
 
 class PortfolioTransaction(Base):
     __tablename__ = "portfolio_transactions"
