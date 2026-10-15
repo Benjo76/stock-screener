@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
-from api.dependencies import DbSession
-from api.responses import RESPONSE_UNAUTHORIZED
+from api.core.dependencies import DbSession
+from api.core.responses import RESPONSE_UNAUTHORIZED
 from api.schemas.system import DashboardSummaryRead, SystemStatusRead
 from screener.services.dashboard_service import DashboardService
 

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
-from api.dependencies import DbSession
-from api.responses import (
+from api.core.dependencies import DbSession
+from api.core.responses import (
     RESPONSE_UNAUTHORIZED,
     RESPONSE_UNPROCESSABLE_ENTITY,
 )

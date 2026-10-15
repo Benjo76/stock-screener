@@ -5,7 +5,8 @@ from datetime import datetime
 from typing import Any
 
 from screener.analysis.engine import StockAnalysisEngine
-from screener.db.models import Portfolio, PortfolioHolding, StockPrice
+from screener.db.models.portfolio import Portfolio, PortfolioHolding
+from screener.db.models.stock import StockPrice
 
 
 @dataclass

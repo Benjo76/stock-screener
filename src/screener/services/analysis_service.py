@@ -9,13 +9,9 @@ from sqlalchemy.orm import Session, selectinload
 
 from screener.analysis.engine import StockAnalysisEngine
 from screener.analysis.portfolio_analyzer import PortfolioAnalyzer
-from screener.db.models import (
-    AnalysisJob,
-    AnalysisResult,
-    Portfolio,
-    PortfolioHolding,
-    Stock,
-)
+from screener.db.models.job import AnalysisJob, AnalysisResult
+from screener.db.models.portfolio import Portfolio, PortfolioHolding
+from screener.db.models.stock import Stock
 from screener.services.stock_service import StockService
 
 

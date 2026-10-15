@@ -5,7 +5,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from screener.db.models import CompanyReport, FundamentalData
+from screener.db.models.report import CompanyReport
+from screener.db.models.stock import FundamentalData
 
 
 @dataclass

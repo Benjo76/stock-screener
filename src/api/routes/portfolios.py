@@ -3,8 +3,8 @@ from typing import Literal
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
-from api.dependencies import DbSession
-from api.responses import (
+from api.core.dependencies import DbSession
+from api.core.responses import (
     RESPONSE_UNAUTHORIZED,
     RESPONSE_UNPROCESSABLE_ENTITY,
 )

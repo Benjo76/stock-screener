@@ -7,12 +7,12 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
-from screener.db.models import (
+from screener.db.models.portfolio import (
     Portfolio,
     PortfolioHolding,
     PortfolioTransaction,
-    Stock,
 )
+from screener.db.models.stock import Stock, StockPrice
 from screener.importers.csv_importer import (
     CsvPortfolioImporter,
     CsvValidationResult,
@@ -150,7 +150,6 @@ class PortfolioService:
                     db.flush()
 
                 if row.current_price is not None:
-                    from screener.db.models import StockPrice
                     today = now.date()
                     existing_sp = db.scalar(
                         select(StockPrice).where(
@@ -355,7 +354,6 @@ class PortfolioService:
             db.add(holding)
 
         if current_price is not None:
-            from screener.db.models import StockPrice
             today = now.date()
             existing_sp = db.scalar(
                 select(StockPrice).where(
@@ -481,8 +479,6 @@ class PortfolioService:
         portfolio = cls.get_portfolio_by_id(db, portfolio_id)
         if not portfolio:
             raise HTTPException(status_code=404, detail="Portfolio not found")
-
-        from screener.db.models import StockPrice
 
         total_cost = 0.0
         total_value = 0.0

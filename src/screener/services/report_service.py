@@ -9,7 +9,8 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from screener.analysis.report_analyzer import CompanyReportAnalyzer
-from screener.db.models import CompanyReport, FundamentalData, ReportAnalysis, Stock
+from screener.db.models.report import CompanyReport, ReportAnalysis
+from screener.db.models.stock import FundamentalData, Stock
 from screener.services.stock_service import StockService
 
 

@@ -8,7 +8,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
-from screener.db.models import FundamentalData, Stock, StockPrice
+from screener.db.models.stock import FundamentalData, Stock, StockPrice
 from screener.importers.csv_importer import validate_isin, validate_wkn
 from screener.providers.base import BaseDataProvider
 from screener.providers.manager import get_data_provider

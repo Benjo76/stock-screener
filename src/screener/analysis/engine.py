@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from screener.db.models import FundamentalData, Stock, StockPrice
+from screener.db.models.stock import FundamentalData, Stock, StockPrice
 
 
 @dataclass

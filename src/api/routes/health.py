@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from sqlalchemy import text
 
-from api.dependencies import DbSession
+from api.core.dependencies import DbSession
 
 router = APIRouter(tags=["System"])
 

@@ -6,17 +6,20 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.middlewares import AuthenticationMiddleware, ValidationMiddleware
-from api.openapi import setup_openapi
-from api.routes import (
-    analyses_router,
-    dashboard_router,
-    health_router,
-    portfolios_router,
-    reports_router,
-    stocks_router,
-)
+from api.core.openapi import setup_openapi
+from api.middlewares.authentication import AuthenticationMiddleware
+from api.middlewares.validation import ValidationMiddleware
+from api.routes.analyses import router as analyses_router
+from api.routes.dashboard import router as dashboard_router
+from api.routes.health import router as health_router
+from api.routes.portfolios import router as portfolios_router
+from api.routes.reports import router as reports_router
+from api.routes.stocks import router as stocks_router
 from screener.db.base import Base
+import screener.db.models.job  # noqa
+import screener.db.models.portfolio  # noqa
+import screener.db.models.report  # noqa
+import screener.db.models.stock  # noqa
 from screener.db.session import engine
 
 

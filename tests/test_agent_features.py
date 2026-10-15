@@ -20,18 +20,14 @@ from screener.analysis.engine import StockAnalysisEngine
 from screener.analysis.portfolio_analyzer import PortfolioAnalyzer
 from screener.analysis.report_analyzer import CompanyReportAnalyzer
 from screener.db.base import Base
-from screener.db.models import (
-    AnalysisJob,
-    AnalysisResult,
-    CompanyReport,
-    FundamentalData,
+from screener.db.models.job import AnalysisJob, AnalysisResult
+from screener.db.models.portfolio import (
     Portfolio,
     PortfolioHolding,
     PortfolioTransaction,
-    ReportAnalysis,
-    Stock,
-    StockPrice,
 )
+from screener.db.models.report import CompanyReport, ReportAnalysis
+from screener.db.models.stock import FundamentalData, Stock, StockPrice
 from screener.db.session import SessionLocal, engine
 from screener.importers.csv_importer import CsvPortfolioImporter
 from screener.providers.mock_provider import MockDataProvider

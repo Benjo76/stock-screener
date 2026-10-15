@@ -5,17 +5,10 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
-from screener.db.models import (
-    AnalysisJob,
-    AnalysisResult,
-    CompanyReport,
-    FundamentalData,
-    Portfolio,
-    PortfolioHolding,
-    ReportAnalysis,
-    Stock,
-    StockPrice,
-)
+from screener.db.models.job import AnalysisJob, AnalysisResult
+from screener.db.models.portfolio import Portfolio, PortfolioHolding
+from screener.db.models.report import CompanyReport, ReportAnalysis
+from screener.db.models.stock import FundamentalData, Stock, StockPrice
 from screener.providers.manager import get_data_provider
 
 
